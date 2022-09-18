@@ -1,0 +1,25 @@
+[package]
+name = "anycast_stability"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["tokio/rt-multi-thread", "tokio/fs", "tokio/io-util", "serde/derive", "bzip2/static", "reqwest/native-tls"]
+
+[profile.release]
+debug = true
+
+[dependencies]
+tokio = "1.21.0"
+reqwest = "0.11.11"
+serde = "1.0.144"
+serde_repr = "0.1.9"
+serde_json = "1.0.85"
+format_serde_error = "0.3.0"
+anyhow = "1.0.63"
+bzip2 = "0.4.3"
+rayon = "1.5.3"
+num_cpus = "1.13.1"
+libc = "0.2.132"
+chrono = "0.4.22"
+flate2 = "1.0.24"
