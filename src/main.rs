@@ -20,9 +20,6 @@ mod rate_limit;
 mod ripe_atlas;
 mod util;
 
-#[cfg(feature = "bench")]
-mod bz2;
-
 fn main() {
     let builder = Builder::new_multi_thread()
         .enable_all()
