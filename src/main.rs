@@ -5,13 +5,6 @@
 use crate::asn::ASNTable;
 use crate::rate_limit::UsageLimiter;
 use crate::ripe_atlas::MeasurementResponse;
-use crate::util::HumanBytes;
-use bzip2::bufread::BzDecoder;
-use std::fs::File;
-use std::io;
-use std::io::{BufRead, BufReader, Read};
-use std::path::Path;
-use std::time::{Duration, Instant};
 use tokio::runtime::Builder;
 
 mod asn;
@@ -116,63 +109,4 @@ fn main() {
     // JSON Parse Time: 85.4278365s over 8147078 usages (10.485µs average)
 
     // Ok(())
-}
-
-fn max_pipe_size() -> Option<usize> {
-    let mut file = File::open("/proc/sys/fs/pipe-max-size").ok()?;
-    let mut buffer = String::new();
-    file.read_to_string(&mut buffer).ok()?;
-    buffer.parse().ok()
-}
-
-pub fn perform_file_read_test() {
-    let large_file = "C:\\Users\\Jasper\\Downloads\\dns-2022-08-08T2300.bz2";
-
-    // for size in 0..8 {
-    let size = 4;
-    let buffer_size = 4096 * (1 << size);
-    let (bytes, duration) = file_read_test(&large_file, buffer_size, 900000).unwrap();
-    println!(
-        "Using buffer size of {}: Read {} bytes in {:?}",
-        HumanBytes(buffer_size as u64),
-        HumanBytes(bytes),
-        duration
-    );
-    // }
-}
-
-pub fn file_read_time<B: BufRead>(buffer: &mut B) -> io::Result<(u64, Duration)> {
-    let mut total_bytes = 0;
-    let start_time = Instant::now();
-
-    loop {
-        let read_len = buffer.fill_buf()?.len();
-        if read_len == 0 {
-            return Ok((total_bytes, start_time.elapsed()));
-        }
-
-        buffer.consume(read_len);
-        total_bytes += read_len as u64;
-    }
-}
-
-pub fn file_read_test<P: AsRef<Path>>(
-    path: P,
-    in_buff_size: usize,
-    out_buff_size: usize,
-) -> io::Result<(u64, Duration)> {
-    let file = BufReader::with_capacity(in_buff_size, File::open(path)?);
-    let mut decoded = BufReader::with_capacity(out_buff_size, BzDecoder::new(file));
-    let mut total_bytes = 0;
-    let start_time = Instant::now();
-
-    loop {
-        let read_len = decoded.fill_buf()?.len();
-        if read_len == 0 {
-            return Ok((total_bytes, start_time.elapsed()));
-        }
-
-        decoded.consume(read_len);
-        total_bytes += read_len as u64;
-    }
 }

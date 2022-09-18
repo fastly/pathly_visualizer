@@ -3,6 +3,8 @@ use std::fmt::{Display, Formatter};
 #[cfg(feature = "bench")]
 pub mod bench;
 
+pub mod bzip2;
+
 /// A quick and dirty wrapper for a value to print bytes in a more human readable form.
 pub struct HumanBytes(pub u64);
 

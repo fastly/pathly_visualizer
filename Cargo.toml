@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["tokio/rt-multi-thread", "tokio/fs", "tokio/io-util", "serde/derive", "bzip2/static", "reqwest/native-tls"]
+default = ["tokio/rt-multi-thread", "tokio/fs", "tokio/io-util", "serde/derive", "bzip2/static"]
 bench = []
 nightly = []
+wide_pipe = ["libc"]
 
 
 [profile.release]
@@ -23,6 +24,8 @@ anyhow = "1.0.63"
 bzip2 = "0.4.3"
 rayon = "1.5.3"
 num_cpus = "1.13.1"
-libc = "0.2.132"
 chrono = "0.4.22"
 flate2 = "1.0.24"
+
+
+libc = {version = "0.2.132", optional = true }
