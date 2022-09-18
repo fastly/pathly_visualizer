@@ -1,33 +1,40 @@
 //! Just some quick utilities I put together to assist in benchmarking various options
 
+mod atomic;
+
 use std::fmt::{Display, Formatter};
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::SeqCst;
 use std::time::{Duration, Instant};
 
-#[macro_export]
-macro_rules! simple_bench {
-    ($bench:ident) => {
-        static $bench: $crate::bench::BenchMark = $crate::bench::BenchMark::new();
-    };
-    ($bench:ident: $operation:expr) => {{
-        let start = ::std::time::Instant::now();
-        let result = ($operation);
-        $bench.append_time(start.elapsed());
-        result
-    }};
+use crate::util::bench::atomic::AtomicDuration;
+#[cfg(feature = "nightly")]
+pub use std::hint::black_box;
+
+/// A stable compatible version of `std::hint::black_box`. Inspired by [rust-lang#1484] and
+/// [`criterion::black_box`].
+///
+/// [rust-lang#1484]: https://github.com/rust-lang/rfcs/issues/1484
+/// [`criterion::black_box`]: https://github.com/bheisler/criterion.rs/blob/master/src/lib.rs#L163
+#[cfg(not(feature = "nightly"))]
+pub fn black_box<T>(dummy: T) -> T {
+    unsafe {
+        let value = std::ptr::read_volatile(&dummy as *const T);
+        std::mem::forget(dummy);
+        value
+    }
 }
 
 #[derive(Debug)]
 pub struct BenchMark {
-    duration: AtomicU64,
+    duration: AtomicDuration,
     usages: AtomicU64,
 }
 
 impl BenchMark {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         BenchMark {
-            duration: AtomicU64::new(0),
+            duration: AtomicDuration::new(Duration::from_secs(0)),
             usages: AtomicU64::new(0),
         }
     }
@@ -41,19 +48,14 @@ impl BenchMark {
     }
 
     pub fn append_time(&self, elapsed: Duration) {
-        let nanos: u64 = elapsed
-            .as_nanos()
-            .try_into()
-            .expect("Nanoseconds elapsed should fit into u64");
-
-        self.duration.fetch_add(nanos, SeqCst);
+        self.duration.fetch_add(elapsed, SeqCst);
         self.usages.fetch_add(1, SeqCst);
     }
 }
 
 impl Display for BenchMark {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let duration = Duration::from_nanos(self.duration.load(SeqCst));
+        let duration = self.duration.load(SeqCst);
         let usages = self.usages.load(SeqCst);
 
         write!(
@@ -69,7 +71,7 @@ impl Display for BenchMark {
 enum ProgressWriteStrategy {
     Count(u64),
     Elapsed {
-        last_print: AtomicU64,
+        last_print: AtomicDuration,
         period: Duration,
     },
 }
@@ -100,7 +102,7 @@ impl ProgressCounter {
             count: AtomicU64::new(0),
             start_time: Instant::now(),
             strategy: ProgressWriteStrategy::Elapsed {
-                last_print: AtomicU64::new(0),
+                last_print: AtomicDuration::new(Duration::from_secs(0)),
                 period,
             },
         }
@@ -123,15 +125,15 @@ impl ProgressCounter {
                 }
             }
             ProgressWriteStrategy::Elapsed { last_print, period } => {
-                let prev_print_time = last_print.load(SeqCst);
-                let last_print_offset = Duration::from_nanos(prev_print_time);
+                let prev_print_offset = last_print.load(SeqCst);
 
-                if self.start_time + last_print_offset + *period < Instant::now() {
-                    let desired_end =
-                        Instant::now().duration_since(self.start_time).as_nanos() as u64;
+                if self.start_time + prev_print_offset + *period < Instant::now() {
+                    let desired_end = Instant::now().duration_since(self.start_time);
 
+                    // If we fail to exchange, that means another thread succeeded so there is no
+                    // need to retry
                     if last_print
-                        .compare_exchange(prev_print_time, desired_end, SeqCst, SeqCst)
+                        .compare_exchange(prev_print_offset, desired_end, SeqCst, SeqCst)
                         .is_ok()
                     {
                         func(count);
