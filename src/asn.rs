@@ -1,6 +1,6 @@
 use crate::ip::{IPv4Address, IPv6Address, IpRange};
 use flate2::bufread::GzDecoder;
-use log::info;
+use log::{error, info};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
@@ -98,7 +98,7 @@ impl ASNTable {
             match this.add_asn_entry(&buffer) {
                 Ok(_) => {}                         // Succeeded
                 Err(ASNParseError::NotRouted) => {} // Not routed so no need to record it
-                Err(e) => println!("Got Error {:?} while reading: {:?}", e, &buffer),
+                Err(e) => error!("Got Error {:?} while reading ASN line: {:?}", e, &buffer),
             }
 
             buffer.clear();

@@ -4,9 +4,11 @@
 
 use crate::asn::ASNTable;
 use crate::env::setup_dotenv;
-use crate::rate_limit::UsageLimiter;
-use crate::ripe_atlas::MeasurementResponse;
+use crate::ripe_atlas::api::{fetch_measurement_results, MeasurementResultsRequest};
+use crate::ripe_atlas::traceroute::Traceroute;
+use crate::ripe_atlas::GeneralMeasurement;
 use log::{info, LevelFilter};
+use reqwest::Client;
 use tokio::runtime::Builder;
 
 mod asn;
@@ -21,7 +23,7 @@ fn main() {
     setup_logging();
     setup_dotenv();
 
-    //
+    // Start async runtime and begin execution of the main application
     Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -31,7 +33,17 @@ fn main() {
 
 async fn async_main() {
     info!("Fetching ASN table...");
-    let _ = ASNTable::fetch_and_load().await.unwrap();
+    let asn_table = ASNTable::fetch_and_load();
+
+    let http_client = Client::new();
+
+    let results_request = MeasurementResultsRequest::default();
+    let results: Vec<GeneralMeasurement<Traceroute>> =
+        fetch_measurement_results(&http_client, 45012592, &results_request)
+            .await
+            .expect("Successfully retrieved results");
+
+    info!("Received {} results!", results.len());
 }
 
 fn setup_logging() {

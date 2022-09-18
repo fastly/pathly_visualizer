@@ -207,32 +207,6 @@ impl<A: Ord> IpRange<A> {
     }
 }
 
-// impl<A> IpRange<A> {
-//     pub fn new(start: A, end: A) -> Self {
-//         IpRange { start, end }
-//     }
-// }
-
-// impl<A: PartialEq> PartialEq for IpRange<A> {
-//     fn eq(&self, other: &Self) -> bool {
-//         // self.start == other.start && self.end ==
-//     }
-// }
-//
-// impl<A: PartialEq + Eq> Eq for IpRange<A> {}
-//
-// impl<A: PartialEq + PartialOrd> PartialOrd for IpRange<A> {
-//     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-//         self.start.partial_cmp(&other.start)
-//     }
-// }
-//
-// impl<A: Ord + Eq + PartialEq + PartialOrd> Ord for IpRange<A> {
-//     fn cmp(&self, other: &Self) -> Ordering {
-//         self.start.cmp(&other.start)
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;

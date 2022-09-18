@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["tokio/rt-multi-thread", "tokio/fs", "tokio/io-util", "serde/derive", "bzip2/static"]
+default = ["tokio/rt-multi-thread", "tokio/fs", "tokio/io-util", "serde/derive", "bzip2/static", "reqwest/json"]
 bench = []
 nightly = []
 wide_pipe = ["libc"]

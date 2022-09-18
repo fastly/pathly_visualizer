@@ -1,3 +1,4 @@
+use crate::ripe_atlas::serde_utils::skip_empty_in_vec;
 use crate::ripe_atlas::{AddressFamily, Protocol, UnixTimestamp};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -5,7 +6,6 @@ use std::borrow::Cow;
 /// https://atlas.ripe.net/docs/apis/result-format/#version-4570
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Traceroute<'a> {
-    pub fw: u32,
     /// address family, 4 or 6 (integer)
     pub af: AddressFamily,
     /// IP address of the destination (string)
@@ -16,54 +16,18 @@ pub struct Traceroute<'a> {
     pub dst_name: Cow<'a, str>,
     /// Unix timestamp for end of measurement (int)
     pub endtime: UnixTimestamp,
-    /// IP address of the probe as know by controller (string)
-    pub from: Cow<'a, str>,
-    /// measurement identifier (int)
-    pub msm_id: i64,
     /// variation for the Paris mode of traceroute (int)
     ///
     /// > Note: For some reason this value is not always present. The specification says it should
     /// > so I don't know why it gets excluded sometimes. Noted from response with fw 4790.
     pub paris_id: Option<i64>,
-    /// source probe ID (int)
-    pub prb_id: i64,
     /// "UDP" or "ICMP" (or "TCP", fw >= 4600) (string)
     pub proto: Protocol,
     /// list of hop elements (array)
     pub result: Vec<TraceHop<'a>>,
     /// packet size (int)
     pub size: u64,
-    /// source address used by probe (string)
-    ///
-    /// > Note: Will not be present in cases where traceroute failed to resolve the host name.
-    /// > However, this should be the same as the `from` field unless I am misunderstanding
-    /// > something.
-    pub src_addr: Option<Cow<'a, str>>,
-    /// Unix timestamp for start of measurement (int)
-    pub timestamp: UnixTimestamp,
-    /// "traceroute" (string)
-    pub r#type: Cow<'a, str>,
 }
-
-// impl<'a> Traceroute<'a> {
-//     pub fn memory_footprint(&self) -> usize {
-//         let mut footprint = std::mem::size_of::<Self>();
-//
-//
-//     }
-//
-//     // pub fn experimental_write<W: WriteBytesExt>(&self, writer: &mut W) -> io::Result<()> {
-//     //     writer.write_u32::<LittleEndian>(self.fw)?;
-//     //     writer.write_u8(self.af as u8)?;
-//     //     Ok(())
-//     // }
-//     //
-//     // pub fn experimental_write<W: WriteBytesExt>(&self, writer: &mut W) -> io::Result<()> {
-//     //     writer.write_u32::<LittleEndian>(self.fw)?;
-//     //     writer.write_u8(self.af as u8)?;
-//     //     Ok(())
-//     // }
-// }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(untagged)]
@@ -73,6 +37,7 @@ pub enum TraceHop<'a> {
     },
     Result {
         hop: u32,
+        #[serde(deserialize_with = "skip_empty_in_vec")]
         result: Vec<TraceReply<'a>>,
     },
 }
@@ -85,9 +50,9 @@ pub enum TraceReply<'a> {
         x: Cow<'a, str>,
     },
     Error {
-        /// The specification does not include this option, but it sometimes comes up if a TraceHop
+        /// The specification does not include this, but it sometimes comes up if a connectivity
         /// type error comes up mid-run.
-        error: Option<Cow<'a, str>>,
+        error: Cow<'a, str>,
     },
     Reply {
         /// (optional) error ICMP: "N" (network unreachable,), "H" (destination unreachable),
