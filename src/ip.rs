@@ -13,14 +13,11 @@ impl FromStr for IPv4Address {
         let mut iter = s.split('.');
         let mut sections = [0; 4];
 
-        for index in 0..4 {
-            sections[index] = iter
+        for section in &mut sections {
+            *section = iter
                 .next()
                 .ok_or(IPParseError::MissingSections)
-                .and_then(|x| {
-                    x.parse()
-                        .map_err(|err| IPParseError::UnableToReadSection(err))
-                })?;
+                .and_then(|x| x.parse().map_err(IPParseError::UnableToReadSection))?;
         }
 
         if iter.next().is_some() {
@@ -88,8 +85,8 @@ impl FromStr for IPv6Address {
                 break;
             }
 
-            sections[idx] = u16::from_str_radix(section, 16)
-                .map_err(|err| IPParseError::UnableToReadSection(err))?;
+            sections[idx] =
+                u16::from_str_radix(section, 16).map_err(IPParseError::UnableToReadSection)?;
             leading_sections += 1;
         }
 
@@ -103,8 +100,8 @@ impl FromStr for IPv6Address {
                 break;
             }
 
-            sections[sections.len() - 1 - idx] = u16::from_str_radix(section, 16)
-                .map_err(|err| IPParseError::UnableToReadSection(err))?;
+            sections[sections.len() - 1 - idx] =
+                u16::from_str_radix(section, 16).map_err(IPParseError::UnableToReadSection)?;
             trailing_sections += 1;
         }
 

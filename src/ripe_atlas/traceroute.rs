@@ -169,7 +169,7 @@ fn icmp_default_ttl() -> i64 {
 #[serde(untagged)]
 pub enum ErrorTypes {
     Code(i32),
-    ICMP(ICMPError),
+    Icmp(ICMPError),
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

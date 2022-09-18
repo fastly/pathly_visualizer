@@ -5,6 +5,9 @@ edition = "2021"
 
 [features]
 default = ["tokio/rt-multi-thread", "tokio/fs", "tokio/io-util", "serde/derive", "bzip2/static", "reqwest/native-tls"]
+bench = []
+nightly = []
+
 
 [profile.release]
 debug = true

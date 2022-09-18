@@ -1,8 +1,11 @@
-#![feature(bench_black_box)]
+#![cfg_attr(all(feature = "bench", feature = "nightly"), feature(bench_black_box))]
+// TODO: Remove this once I begin making an actual usable program instead of random tests
+#![allow(dead_code)]
+
 use crate::asn::ASNTable;
-use crate::bz2::HumanReadableBytes;
 use crate::rate_limit::UsageLimiter;
 use crate::ripe_atlas::MeasurementResponse;
+use crate::util::HumanBytes;
 use bzip2::bufread::BzDecoder;
 use std::fs::File;
 use std::io;
@@ -12,11 +15,13 @@ use std::time::{Duration, Instant};
 use tokio::runtime::Builder;
 
 mod asn;
-mod bench;
-mod bz2;
 mod ip;
 mod rate_limit;
 mod ripe_atlas;
+mod util;
+
+#[cfg(feature = "bench")]
+mod bz2;
 
 fn main() {
     let builder = Builder::new_multi_thread()
@@ -29,7 +34,7 @@ fn main() {
 
     let start = async {
         println!("Fetching ASN table...");
-        let res = ASNTable::fetch_and_load().await.unwrap();
+        let _ = ASNTable::fetch_and_load().await.unwrap();
     };
 
     builder.block_on(start);
@@ -132,8 +137,8 @@ pub fn perform_file_read_test() {
     let (bytes, duration) = file_read_test(&large_file, buffer_size, 900000).unwrap();
     println!(
         "Using buffer size of {}: Read {} bytes in {:?}",
-        HumanReadableBytes(buffer_size as u64),
-        HumanReadableBytes(bytes),
+        HumanBytes(buffer_size as u64),
+        HumanBytes(bytes),
         duration
     );
     // }
@@ -159,7 +164,7 @@ pub fn file_read_test<P: AsRef<Path>>(
     in_buff_size: usize,
     out_buff_size: usize,
 ) -> io::Result<(u64, Duration)> {
-    let mut file = BufReader::with_capacity(in_buff_size, File::open(path)?);
+    let file = BufReader::with_capacity(in_buff_size, File::open(path)?);
     let mut decoded = BufReader::with_capacity(out_buff_size, BzDecoder::new(file));
     let mut total_bytes = 0;
     let start_time = Instant::now();

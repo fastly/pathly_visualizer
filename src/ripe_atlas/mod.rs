@@ -1,4 +1,3 @@
-use crate::bench::{BenchMark, ProgressCounter};
 use crate::ripe_atlas::measurement::Measurement;
 use format_serde_error::SerdeError;
 use rayon::prelude::*;
@@ -7,6 +6,9 @@ use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::borrow::Cow;
 use std::io::BufRead;
+
+#[cfg(feature = "bench")]
+use crate::util::bench::{BenchMark, ProgressCounter};
 
 pub mod api;
 pub mod dns;
@@ -61,17 +63,19 @@ pub enum AddressFamily {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum Protocol {
-    UDP,
-    TCP,
-    ICMP,
+    Udp,
+    Tcp,
+    Icmp,
 }
 
+#[cfg(feature = "bench")]
 pub fn debug_read<T, R: BufRead>(reader: &mut R) -> anyhow::Result<()>
 where
     for<'a> T: Deserialize<'a>,
 {
-    let mut progress = ProgressCounter::default();
+    let progress = ProgressCounter::default();
 
     let read_line = BenchMark::new();
     let parse_json = BenchMark::new();
@@ -102,6 +106,7 @@ where
     Ok(())
 }
 
+#[cfg(feature = "bench")]
 pub fn debug_read_rayon<T, R: BufRead + Send>(reader: &mut R) -> anyhow::Result<()>
 where
     for<'a> T: Deserialize<'a>,

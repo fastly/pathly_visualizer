@@ -62,17 +62,17 @@ pub struct DNSResponse<'a> {
 // }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-#[serde(tag = "TYPE", deny_unknown_fields)]
+#[serde(tag = "TYPE", rename_all = "UPPERCASE", deny_unknown_fields)]
 pub enum DNSRecord<'a> {
     #[serde(rename_all = "UPPERCASE")]
-    TXT {
+    Txt {
         // mname: Option<Cow<'a, str>>,
         name: Cow<'a, str>,
         #[serde(deserialize_with = "one_or_many")]
         rdata: Vec<Cow<'a, str>>,
     },
     #[serde(rename_all = "UPPERCASE")]
-    SOA {
+    Soa {
         mname: Cow<'a, str>,
         name: Cow<'a, str>,
         rname: Cow<'a, str>,
