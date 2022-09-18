@@ -26,6 +26,11 @@ rayon = "1.5.3"
 num_cpus = "1.13.1"
 chrono = "0.4.22"
 flate2 = "1.0.24"
-
-
+dotenv = "0.15.0"
+pretty_env_logger = "0.4.0"
 libc = {version = "0.2.132", optional = true }
+
+
+[dependencies.log]
+version = "0.4"
+features = ["max_level_debug", "release_max_level_info"]

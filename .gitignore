@@ -1,2 +1,6 @@
+# Files related to building Rust projects
 /target
 Cargo.lock
+
+# The dotenv file holds client secrets
+.env

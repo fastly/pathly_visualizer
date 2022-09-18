@@ -1,5 +1,6 @@
 use crate::ip::{IPv4Address, IPv6Address, IpRange};
 use flate2::bufread::GzDecoder;
+use log::info;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
@@ -16,6 +17,8 @@ const CACHE_PATH: &str = ".cache/ip2asn-combined.tsv.gz";
 
 pub async fn cache_latest_asn() -> anyhow::Result<()> {
     let file = tokio::fs::File::create(CACHE_PATH);
+
+    info!("Fetching latest ASN tables from {}", ASN_TABLE_API);
     let mut response = reqwest::get(ASN_TABLE_API).await?;
 
     // tokio equivalent just spawns another thread to do this with regular blocking code
