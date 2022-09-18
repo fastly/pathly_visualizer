@@ -1,13 +1,18 @@
-use std::time::Duration;
+use crate::{MeasurementResponse, UsageLimiter};
 use format_serde_error::SerdeError;
 use reqwest::Client;
 use serde_json::Value;
+use std::time::Duration;
 use tokio::io::AsyncWriteExt;
-use crate::{MeasurementResponse, UsageLimiter};
 
 async fn start() {
     let client = UsageLimiter::new(Client::new(), 10, Duration::from_secs(1));
-    download_measurements(&client, "https://atlas.ripe.net:443/api/v2/measurements/traceroute/").await.unwrap();
+    download_measurements(
+        &client,
+        "https://atlas.ripe.net:443/api/v2/measurements/traceroute/",
+    )
+    .await
+    .unwrap();
 
     // const URL: &'static str = "https://atlas.ripe.net:443/api/v2/measurements/traceroute/";
     // // const URL: &'static str = "https://atlas.ripe.net/api/v6/measurements/";
@@ -64,15 +69,23 @@ async fn start() {
 //         .service(client)
 // }
 
-async fn download_measurements<S: AsRef<str>>(client: &UsageLimiter<Client>, url: S) -> anyhow::Result<()> {
+async fn download_measurements<S: AsRef<str>>(
+    client: &UsageLimiter<Client>,
+    url: S,
+) -> anyhow::Result<()> {
     // let response = reqwest::get(url.as_ref()).await?.text().await?;
-    let response = client.perform_rate_limited(|client| client.get(url.as_ref()).send())
-        .await?.text().await?;
+    let response = client
+        .perform_rate_limited(|client| client.get(url.as_ref()).send())
+        .await?
+        .text()
+        .await?;
 
-    let parsed = serde_json::from_str::<MeasurementResponse>(&response).map_err(|err| SerdeError::new(response.to_owned(), err))?;
+    let parsed = serde_json::from_str::<MeasurementResponse>(&response)
+        .map_err(|err| SerdeError::new(response.to_owned(), err))?;
 
     let buffer = serde_json::to_vec_pretty(&parsed)?;
-    let mut file = tokio::io::BufWriter::new(tokio::fs::File::create("raw_data/measurements.json").await?);
+    let mut file =
+        tokio::io::BufWriter::new(tokio::fs::File::create("raw_data/measurements.json").await?);
     file.write_all(&buffer).await?;
 
     let mut buffered_requests = Vec::with_capacity(500);
@@ -94,13 +107,15 @@ async fn download_measurements<S: AsRef<str>>(client: &UsageLimiter<Client>, url
     Ok(())
 }
 
-
 async fn fetch_single(client: &UsageLimiter<Client>, pk: String) -> anyhow::Result<()> {
     let url = format!("https://atlas.ripe.net/api/v2/measurements/{}/results/", pk);
     // let response_text = reqwest::get(url).await?.text().await?;
     // let x = client.ready_and().await;
-    let response_text = client.perform_rate_limited(|client| client.get(url).send())
-        .await?.text().await?;
+    let response_text = client
+        .perform_rate_limited(|client| client.get(url).send())
+        .await?
+        .text()
+        .await?;
 
     match serde_json::from_str::<Value>(&response_text) {
         Ok(v) => {
@@ -110,8 +125,7 @@ async fn fetch_single(client: &UsageLimiter<Client>, pk: String) -> anyhow::Resu
             let mut file = tokio::io::BufWriter::new(tokio::fs::File::create(&path).await?);
             file.write_all(&buffer).await?;
             println!("pk {}: Saved response", pk);
-
-        },
+        }
         Err(e) => {
             println!("pk {}: Response not json: {:?}", pk, e);
         }

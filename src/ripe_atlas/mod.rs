@@ -1,19 +1,19 @@
-use std::borrow::Cow;
-use std::io::{BufRead, Read};
+use crate::bench::{BenchMark, ProgressCounter};
+use crate::ripe_atlas::measurement::Measurement;
 use format_serde_error::SerdeError;
 use rayon::prelude::*;
-use crate::ripe_atlas::measurement::Measurement;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_repr::{Serialize_repr, Deserialize_repr};
-use crate::bench::{BenchMark, ProgressCounter};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::borrow::Cow;
+use std::io::BufRead;
 
-pub mod measurement;
-pub mod traceroute;
-pub mod dns;
 pub mod api;
-mod serde_utils;
+pub mod dns;
+pub mod measurement;
 pub mod raw_data;
+mod serde_utils;
+pub mod traceroute;
 
 /// A signed value for the unix timestamp just in case some values are negative. This should never
 /// happen though, so it may be changed to unsigned.
@@ -26,7 +26,6 @@ pub struct MeasurementResponse<'a> {
     previous: Option<String>,
     pub results: Vec<Measurement<'a>>,
 }
-
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GeneralMeasurement<'a, T> {
@@ -54,14 +53,12 @@ pub struct GeneralMeasurement<'a, T> {
     r#type: Cow<'a, str>,
 }
 
-
 #[derive(Copy, Clone, Serialize_repr, Deserialize_repr, Debug)]
 #[repr(u8)]
 pub enum AddressFamily {
     IPv4 = 4,
     IPv6 = 6,
 }
-
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Protocol {
@@ -70,9 +67,9 @@ pub enum Protocol {
     ICMP,
 }
 
-
 pub fn debug_read<T, R: BufRead>(reader: &mut R) -> anyhow::Result<()>
-    where for<'a> T: Deserialize<'a>
+where
+    for<'a> T: Deserialize<'a>,
 {
     let mut progress = ProgressCounter::default();
 
@@ -105,16 +102,17 @@ pub fn debug_read<T, R: BufRead>(reader: &mut R) -> anyhow::Result<()>
     Ok(())
 }
 
-
-
 pub fn debug_read_rayon<T, R: BufRead + Send>(reader: &mut R) -> anyhow::Result<()>
-    where for<'a> T: Deserialize<'a>
+where
+    for<'a> T: Deserialize<'a>,
 {
     let progress = ProgressCounter::default();
 
     let parse_json = BenchMark::new();
 
-    reader.lines().par_bridge()
+    reader
+        .lines()
+        .par_bridge()
         .try_for_each(|buffer| -> std::io::Result<()> {
             let buffer = buffer?;
 
@@ -135,12 +133,9 @@ pub fn debug_read_rayon<T, R: BufRead + Send>(reader: &mut R) -> anyhow::Result<
             Ok(())
         })?;
 
-
     println!("Successfully parsed all values in {:?}", progress.elapsed());
     // println!("Line Read Time:  {}", read_line);
     println!("JSON Parse Time: {}", parse_json);
 
     Ok(())
 }
-
-

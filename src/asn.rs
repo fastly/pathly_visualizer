@@ -1,3 +1,5 @@
+use crate::ip::{IPv4Address, IPv6Address, IpRange};
+use flate2::bufread::GzDecoder;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
@@ -7,13 +9,10 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
-use flate2::bufread::GzDecoder;
-use reqwest::{Client, ClientBuilder};
 use tokio::io::{AsyncWriteExt, BufWriter};
-use crate::ip::{IpRange, IPv4Address, IPv6Address};
 
-const ASN_TABLE_API: &'static str = "https://iptoasn.com/data/ip2asn-combined.tsv.gz";
-const CACHE_PATH: &'static str = ".cache/ip2asn-combined.tsv.gz";
+const ASN_TABLE_API: &str = "https://iptoasn.com/data/ip2asn-combined.tsv.gz";
+const CACHE_PATH: &str = ".cache/ip2asn-combined.tsv.gz";
 
 pub async fn cache_latest_asn() -> anyhow::Result<()> {
     let file = tokio::fs::File::create(CACHE_PATH);
@@ -26,7 +25,7 @@ pub async fn cache_latest_asn() -> anyhow::Result<()> {
     {
         let mut cache_file = BufWriter::new(&mut file);
         while let Some(chunk) = response.chunk().await? {
-           cache_file.write_all(chunk.as_ref()).await?;
+            cache_file.write_all(chunk.as_ref()).await?;
         }
 
         cache_file.flush().await?;
@@ -76,7 +75,6 @@ pub struct ASNTable {
 }
 
 impl ASNTable {
-
     pub async fn fetch_and_load() -> anyhow::Result<Self> {
         cache_latest_asn().await?;
         Ok(Self::from_cached(CACHE_PATH)?)
@@ -95,8 +93,8 @@ impl ASNTable {
         let mut buffer = String::new();
         while reader.read_line(&mut buffer)? > 0 {
             match this.add_asn_entry(&buffer) {
-                Ok(_) => {},  // Succeeded
-                Err(ASNParseError::NotRouted) => {},  // Not routed so no need to record it
+                Ok(_) => {}                         // Succeeded
+                Err(ASNParseError::NotRouted) => {} // Not routed so no need to record it
                 Err(e) => println!("Got Error {:?} while reading: {:?}", e, &buffer),
             }
 
@@ -143,12 +141,18 @@ impl ASNTable {
         };
 
         // First attempt to parse addresses as ipv4 then ipv6
-        if let (Ok(a), Ok(b)) = (IPv4Address::from_str(range_start), IPv4Address::from_str(range_end)) {
+        if let (Ok(a), Ok(b)) = (
+            IPv4Address::from_str(range_start),
+            IPv4Address::from_str(range_end),
+        ) {
             self.ipv4.insert(IpRange::new(a, b), asn_entry);
-        } else if let (Ok(a), Ok(b)) = (IPv6Address::from_str(range_start), IPv6Address::from_str(range_end)) {
+        } else if let (Ok(a), Ok(b)) = (
+            IPv6Address::from_str(range_start),
+            IPv6Address::from_str(range_end),
+        ) {
             self.ipv6.insert(IpRange::new(a, b), asn_entry);
         } else {
-            return Err(ASNParseError::FailedToParseIP)
+            return Err(ASNParseError::FailedToParseIP);
         }
 
         Ok(())
@@ -160,9 +164,9 @@ impl ASNTable {
         // It should only ever search 1 or 2 entries, but use loop for simplicity
         while let Some((ip_range, asn)) = search_area.next_back() {
             if ip_range.contains(&address) {
-                return Some(&*asn)
+                return Some(&*asn);
             } else if ip_range.end < address {
-                break
+                break;
             }
         }
 
@@ -175,9 +179,9 @@ impl ASNTable {
         // It should only ever search 1 or 2 entries, but use loop for simplicity
         while let Some((ip_range, asn)) = search_area.next_back() {
             if ip_range.contains(&address) {
-                return Some(&*asn)
+                return Some(&*asn);
             } else if ip_range.end < address {
-                break
+                break;
             }
         }
 
@@ -186,11 +190,11 @@ impl ASNTable {
 
     pub fn asn_for_ip_str(&self, x: &str) -> Result<Option<&AutonomousSystem>, RequiresDNSLookup> {
         if let Ok(ip) = IPv4Address::from_str(x) {
-            return Ok(self.asn_for_ipv4(ip))
+            return Ok(self.asn_for_ipv4(ip));
         }
 
         if let Ok(ip) = IPv6Address::from_str(x) {
-            return Ok(self.asn_for_ipv6(ip))
+            return Ok(self.asn_for_ipv6(ip));
         }
 
         Err(RequiresDNSLookup)
@@ -206,4 +210,3 @@ enum ASNParseError {
     InvalidASN,
     FailedToParseIP,
 }
-

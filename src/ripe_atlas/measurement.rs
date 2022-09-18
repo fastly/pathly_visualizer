@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::borrow::Cow;
-use serde::{Serialize, Deserialize};
-use serde_repr::{Serialize_repr, Deserialize_repr};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Measurement<'a> {
@@ -44,7 +44,7 @@ pub struct Measurement<'a> {
     packets: Option<u8>,
     first_hop: Option<u64>,
     max_hops: Option<u64>,
-    paris:Option<u8>,
+    paris: Option<u8>,
     size: Option<u16>,
     protocol: Option<Cow<'a, str>>,
     response_timeout: Option<u64>,
@@ -56,7 +56,6 @@ pub struct Measurement<'a> {
     target: Cow<'a, str>,
     interval: u64,
 }
-
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct MeasurementStatus<'a> {
@@ -75,7 +74,6 @@ pub struct Probe<'a> {
     /// The URL that contains the details of this probe
     url: Cow<'a, str>,
 }
-
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct ProbeSource<'a> {
@@ -119,9 +117,6 @@ pub struct ParticipationRequest<'a> {
     #[serde(rename = "self")]
     self_url: Cow<'a, str>,
 }
-
-
-
 
 #[derive(Copy, Clone, Serialize_repr, Deserialize_repr, Debug)]
 #[repr(u8)]

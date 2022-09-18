@@ -41,7 +41,8 @@ impl BenchMark {
     }
 
     pub fn append_time(&self, elapsed: Duration) {
-        let nanos: u64 = elapsed.as_nanos()
+        let nanos: u64 = elapsed
+            .as_nanos()
             .try_into()
             .expect("Nanoseconds elapsed should fit into u64");
 
@@ -55,10 +56,15 @@ impl Display for BenchMark {
         let duration = Duration::from_nanos(self.duration.load(SeqCst));
         let usages = self.usages.load(SeqCst);
 
-        write!(f, "{:?} over {} usages ({:?} average)", duration, usages, duration / usages as u32)
+        write!(
+            f,
+            "{:?} over {} usages ({:?} average)",
+            duration,
+            usages,
+            duration / usages as u32
+        )
     }
 }
-
 
 enum ProgressWriteStrategy {
     Count(u64),
@@ -93,9 +99,9 @@ impl ProgressCounter {
         ProgressCounter {
             count: AtomicU64::new(0),
             start_time: Instant::now(),
-            strategy: ProgressWriteStrategy::Elapsed{
+            strategy: ProgressWriteStrategy::Elapsed {
                 last_print: AtomicU64::new(0),
-                period
+                period,
             },
         }
     }
@@ -121,9 +127,13 @@ impl ProgressCounter {
                 let last_print_offset = Duration::from_nanos(prev_print_time);
 
                 if self.start_time + last_print_offset + *period < Instant::now() {
-                    let desired_end = Instant::now().duration_since(self.start_time).as_nanos() as u64;
+                    let desired_end =
+                        Instant::now().duration_since(self.start_time).as_nanos() as u64;
 
-                    if last_print.compare_exchange(prev_print_time, desired_end, SeqCst, SeqCst).is_ok() {
+                    if last_print
+                        .compare_exchange(prev_print_time, desired_end, SeqCst, SeqCst)
+                        .is_ok()
+                    {
                         func(count);
                     }
                 }

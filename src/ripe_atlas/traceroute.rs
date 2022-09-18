@@ -1,10 +1,6 @@
-use std::borrow::Cow;
-use std::fmt::Write;
-use std::io;
-use serde::{Serialize, Deserialize};
-use serde_repr::{Serialize_repr, Deserialize_repr};
 use crate::ripe_atlas::{AddressFamily, Protocol, UnixTimestamp};
-
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// https://atlas.ripe.net/docs/apis/result-format/#version-4570
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -69,7 +65,6 @@ pub struct Traceroute<'a> {
 //     // }
 // }
 
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum TraceHop<'a> {
@@ -79,7 +74,7 @@ pub enum TraceHop<'a> {
     Result {
         hop: u32,
         result: Vec<TraceReply<'a>>,
-    }
+    },
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -137,7 +132,7 @@ pub struct ICMPObj {
     /// RFC4884 type (int)
     pub r#type: i64,
     /// [optional] MPLS data, RFC4950, shown when class is "1" and type is "1" (array)
-    pub mpls: Option<Vec<MPLSData>>
+    pub mpls: Option<Vec<MPLSData>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -156,16 +151,19 @@ pub struct MPLSData {
 pub enum RoundTripTime {
     /// round-trip-time of reply, not present when the response is late (float)
     #[serde(rename = "rtt")]
-    OnTime (f32),
+    OnTime(f32),
     /// (optional) number of packets a reply is late, in this case rtt is not present (int)
     #[serde(rename = "late")]
-    Late (u32)
+    Late(u32),
 }
 
 /// Utility functions which specify if the ttl should be excluded from traceroute hop reply details
-fn omit_icmp_ttl(ttl: &i64) -> bool { *ttl == 1 }
-fn icmp_default_ttl() -> i64 { 1 }
-
+fn omit_icmp_ttl(ttl: &i64) -> bool {
+    *ttl == 1
+}
+fn icmp_default_ttl() -> i64 {
+    1
+}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(untagged)]

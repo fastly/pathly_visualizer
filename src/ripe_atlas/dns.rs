@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize, Deserializer};
+use crate::ripe_atlas::{AddressFamily, Protocol};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
-use crate::ripe_atlas::{AddressFamily, Protocol};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct DNSLookup<'a> {
@@ -16,7 +16,6 @@ pub struct DNSLookup<'a> {
     qbuf: Option<Cow<'a, str>>,
     result: Option<DNSResponse<'a>>,
     retry: Option<u32>,
-
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -79,13 +78,13 @@ pub enum DNSRecord<'a> {
         rname: Cow<'a, str>,
         serial: i64,
         ttl: i64,
-    }
+    },
 }
 
-
 pub fn one_or_many<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
-    where D: Deserializer<'de>,
-        T: Deserialize<'de>,
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
 {
     #[derive(Deserialize)]
     #[serde(untagged)]
@@ -99,7 +98,6 @@ pub fn one_or_many<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
         OneOrMany::Many(x) => Ok(x),
     }
 }
-
 
 // #[derive(Clone, Serialize, Deserialize, Debug)]
 // pub struct DNSLookupError<'a> {
@@ -132,12 +130,11 @@ pub fn one_or_many<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum DNSLookupError<'a> {
-    Timeout{
+    Timeout {
         timeout: u64,
     },
     Other {
         #[serde(flatten)]
         err_map: HashMap<Cow<'a, str>, Cow<'a, str>>,
-    }
+    },
 }
-

@@ -28,8 +28,9 @@ impl<T> UsageLimiter<T> {
     }
 
     pub async fn perform_rate_limited<F, R, A>(&self, func: F) -> R
-        where F: FnOnce(&T) -> A,
-              A: Future<Output=R>,
+    where
+        F: FnOnce(&T) -> A,
+        A: Future<Output = R>,
     {
         loop {
             let usage_request = self.period_usage.fetch_update(SeqCst, SeqCst, |usage| {
@@ -46,7 +47,6 @@ impl<T> UsageLimiter<T> {
 
             self.update_period_end();
         }
-
 
         let res = func(&self.inner).await;
         self.period_completed.fetch_add(1, SeqCst);
@@ -68,9 +68,12 @@ impl<T> UsageLimiter<T> {
 
             let new_end = SystemTime::now() + self.limit_period;
 
-            Some(new_end.duration_since(SystemTime::UNIX_EPOCH)
-                .expect("Time should not be before unix epoch")
-                .as_millis() as u64)
+            Some(
+                new_end
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("Time should not be before unix epoch")
+                    .as_millis() as u64,
+            )
         });
 
         if res.is_ok() {
@@ -87,10 +90,10 @@ impl<T> UsageLimiter<T> {
                     if completed > usage {
                         usage = self.period_usage.load(SeqCst);
                         std::hint::spin_loop();
-                        continue
+                        continue;
                     }
 
-                    break Some(usage - completed)
+                    break Some(usage - completed);
                 }
             });
             self.period_completed.fetch_sub(completed, SeqCst);
@@ -100,5 +103,3 @@ impl<T> UsageLimiter<T> {
         SystemTime::UNIX_EPOCH + Duration::from_millis(new_end)
     }
 }
-
-

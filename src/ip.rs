@@ -1,11 +1,10 @@
-use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::num::ParseIntError;
 use std::str::FromStr;
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Copy, Clone)]
 #[repr(transparent)]
-pub struct IPv4Address (u32);
+pub struct IPv4Address(u32);
 
 impl FromStr for IPv4Address {
     type Err = IPParseError;
@@ -15,13 +14,17 @@ impl FromStr for IPv4Address {
         let mut sections = [0; 4];
 
         for index in 0..4 {
-            sections[index] = iter.next()
+            sections[index] = iter
+                .next()
                 .ok_or(IPParseError::MissingSections)
-                .and_then(|x| x.parse().map_err(|err| IPParseError::UnableToReadSection(err)))?;
+                .and_then(|x| {
+                    x.parse()
+                        .map_err(|err| IPParseError::UnableToReadSection(err))
+                })?;
         }
 
         if iter.next().is_some() {
-            return Err(IPParseError::TooManySections)
+            return Err(IPParseError::TooManySections);
         }
 
         Ok(IPv4Address::from(sections))
@@ -49,7 +52,7 @@ impl From<IPv4Address> for [u8; 4] {
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Hash, Debug, Copy, Clone)]
 #[repr(transparent)]
-pub struct IPv6Address ([u16; 8]);
+pub struct IPv6Address([u16; 8]);
 
 impl FromStr for IPv6Address {
     type Err = IPParseError;
@@ -61,16 +64,15 @@ impl FromStr for IPv6Address {
             has_omitted_zeros = true;
 
             if Some(x) != s.rfind("::") {
-                return Err(IPParseError::MultipleZerosOmitted)
+                return Err(IPParseError::MultipleZerosOmitted);
             }
         }
 
         // A single leading or trailing colon could lead to incorrect parsing
-        if (s.starts_with(':') && !s.starts_with("::"))
-            || (s.ends_with(':') && !s.ends_with("::")) {
-            return Err(IPParseError::MissingSections)
+        if (s.starts_with(':') && !s.starts_with("::")) || (s.ends_with(':') && !s.ends_with("::"))
+        {
+            return Err(IPParseError::MissingSections);
         }
-
 
         let mut leading_sections = 0;
         let mut trailing_sections = 0;
@@ -79,11 +81,11 @@ impl FromStr for IPv6Address {
         // Parse leading sections
         for (idx, section) in s.split(':').enumerate() {
             if idx >= sections.len() {
-                return Err(IPParseError::TooManySections)
+                return Err(IPParseError::TooManySections);
             }
 
             if section.is_empty() {
-                break
+                break;
             }
 
             sections[idx] = u16::from_str_radix(section, 16)
@@ -94,11 +96,11 @@ impl FromStr for IPv6Address {
         // Parse trailing sections
         for (idx, section) in s.rsplit(':').enumerate() {
             if idx >= sections.len() {
-                return Err(IPParseError::TooManySections)
+                return Err(IPParseError::TooManySections);
             }
 
             if section.is_empty() {
-                break
+                break;
             }
 
             sections[sections.len() - 1 - idx] = u16::from_str_radix(section, 16)
@@ -110,7 +112,7 @@ impl FromStr for IPv6Address {
         match (has_omitted_zeros, leading_sections, trailing_sections) {
             (true, x, y) if x + y >= sections.len() => Err(IPParseError::TooManySections),
             (false, x, _) if x < sections.len() => Err(IPParseError::MissingSections),
-            _ => Ok(IPv6Address::from(sections))
+            _ => Ok(IPv6Address::from(sections)),
         }
     }
 }
@@ -135,7 +137,7 @@ impl Display for IPv6Address {
         }
 
         if longest_zeros == self.0.len() {
-            return write!(f, "::")
+            return write!(f, "::");
         }
 
         let mut idx = 0;
@@ -191,7 +193,6 @@ impl<A> IpRange<A> {
     pub fn new(start: A, end: A) -> Self {
         IpRange { start, end }
     }
-
 }
 
 impl<A: Clone> IpRange<A> {
@@ -215,7 +216,6 @@ impl<A: Ord> IpRange<A> {
 //     }
 // }
 
-
 // impl<A: PartialEq> PartialEq for IpRange<A> {
 //     fn eq(&self, other: &Self) -> bool {
 //         // self.start == other.start && self.end ==
@@ -238,17 +238,23 @@ impl<A: Ord> IpRange<A> {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Debug;
     use super::*;
+    use std::fmt::Debug;
 
     /// Check that when parsed and formatted, input string remains the same
     fn check_parse_format<T>(x: &str)
-        where T: FromStr + Debug + Display,
-              <T as FromStr>::Err: Debug,
+    where
+        T: FromStr + Debug + Display,
+        <T as FromStr>::Err: Debug,
     {
         let parsed = T::from_str(x);
         assert!(parsed.is_ok(), "Failed to parse {:?}: {:?}", x, parsed);
-        assert_eq!(format!("{}", parsed.as_ref().unwrap()), x, "Display does not match original: {:?}", parsed);
+        assert_eq!(
+            format!("{}", parsed.as_ref().unwrap()),
+            x,
+            "Display does not match original: {:?}",
+            parsed
+        );
     }
 
     #[test]
@@ -263,13 +269,18 @@ mod tests {
         check_parse_format::<IPv6Address>("1234:5678::9abc:0:0:def");
         check_parse_format::<IPv6Address>("1:2:3:4:5:6:7:8");
 
-        assert_eq!(IPv6Address::from_str("ffff:ffff:ffff:ffff:ffff:ffff"), Err(IPParseError::MissingSections));
-        assert_eq!(IPv6Address::from_str("1:2:3:4:5:6:7:8:9"), Err(IPParseError::TooManySections));
+        assert_eq!(
+            IPv6Address::from_str("ffff:ffff:ffff:ffff:ffff:ffff"),
+            Err(IPParseError::MissingSections)
+        );
+        assert_eq!(
+            IPv6Address::from_str("1:2:3:4:5:6:7:8:9"),
+            Err(IPParseError::TooManySections)
+        );
         assert!(IPv6Address::from_str("1::2:3::4").is_err());
         assert!(IPv4Address::from_str("1:2:3:4::5:6:7:8").is_err());
         assert!(IPv4Address::from_str("1").is_err());
     }
-
 
     #[test]
     fn check_ipv4() {
@@ -277,8 +288,14 @@ mod tests {
         check_parse_format::<IPv4Address>("123.234.56.78");
         check_parse_format::<IPv4Address>("255.255.255.255");
 
-        assert_eq!(IPv4Address::from_str("1.2.3"), Err(IPParseError::MissingSections));
-        assert_eq!(IPv4Address::from_str("1.2.3.4.5"), Err(IPParseError::TooManySections));
+        assert_eq!(
+            IPv4Address::from_str("1.2.3"),
+            Err(IPParseError::MissingSections)
+        );
+        assert_eq!(
+            IPv4Address::from_str("1.2.3.4.5"),
+            Err(IPParseError::TooManySections)
+        );
         assert!(IPv4Address::from_str("1.2.ff.4").is_err());
         assert!(IPv4Address::from_str("123.234.56.78-").is_err());
         assert!(IPv4Address::from_str("....").is_err());

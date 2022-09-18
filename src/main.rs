@@ -1,33 +1,29 @@
 #![feature(bench_black_box)]
+use crate::asn::ASNTable;
+use crate::bz2::HumanReadableBytes;
+use crate::rate_limit::UsageLimiter;
+use crate::ripe_atlas::MeasurementResponse;
+use bzip2::bufread::BzDecoder;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::ptr::null_mut;
 use std::time::{Duration, Instant};
-use bzip2::bufread::BzDecoder;
-use libc::c_int;
 use tokio::runtime::Builder;
-use crate::asn::ASNTable;
-use crate::bz2::HumanReadableBytes;
-use crate::rate_limit::UsageLimiter;
-use crate::ripe_atlas::{debug_read, debug_read_rayon, GeneralMeasurement, MeasurementResponse};
-use crate::ripe_atlas::dns::DNSLookup;
 
-mod ripe_atlas;
-mod rate_limit;
-mod bz2;
-mod bench;
 mod asn;
+mod bench;
+mod bz2;
 mod ip;
+mod rate_limit;
+mod ripe_atlas;
 
 fn main() {
     let builder = Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("Failed to build Tokio async runtime");
-        // .enter();
+    // .enter();
     //
     // builder.block_on(start());
 
@@ -61,7 +57,6 @@ fn main() {
         let mut pipes: [c_int; 2] = [0; 2];
         assert_eq!(libc::pipe(pipes.as_mut_ptr()), 0);
 
-
         let read_size = libc::fcntl(pipes[0], libc::F_GETPIPE_SZ);
         let write_size = libc::fcntl(pipes[1], libc::F_GETPIPE_SZ);
         println!("Pipe sizes: {} and {}", read_size, write_size);
@@ -83,7 +78,6 @@ fn main() {
             let read_size = libc::fcntl(pipes[0], libc::F_GETPIPE_SZ);
             let write_size = libc::fcntl(pipes[1], libc::F_GETPIPE_SZ);
             println!("Pipe sizes: {} and {}", read_size, write_size);
-
         }
 
         use std::os::unix::io::FromRawFd;
@@ -97,11 +91,9 @@ fn main() {
             .spawn()
             .expect("Spawned lbzcat successfully");
 
-
         let mut decode_stream = BufReader::new(File::from_raw_fd(pipes[0]));
         // let mut decode_stream = BufReader::with_capacity(128 * 1024, File::from_raw_fd(pipes[0]));
         // let mut decode_stream = BufReader::with_capacity(1024, command.stdout.unwrap());
-
 
         let (bytes, duration) = file_read_time(&mut decode_stream).unwrap();
         println!("Read {} bytes in {:?}", HumanReadableBytes(bytes), duration);
@@ -136,12 +128,16 @@ pub fn perform_file_read_test() {
 
     // for size in 0..8 {
     let size = 4;
-        let buffer_size = 4096 * (1 << size);
-        let (bytes, duration) = file_read_test(&large_file, buffer_size, 900000).unwrap();
-        println!("Using buffer size of {}: Read {} bytes in {:?}", HumanReadableBytes(buffer_size as u64), HumanReadableBytes(bytes), duration);
+    let buffer_size = 4096 * (1 << size);
+    let (bytes, duration) = file_read_test(&large_file, buffer_size, 900000).unwrap();
+    println!(
+        "Using buffer size of {}: Read {} bytes in {:?}",
+        HumanReadableBytes(buffer_size as u64),
+        HumanReadableBytes(bytes),
+        duration
+    );
     // }
 }
-
 
 pub fn file_read_time<B: BufRead>(buffer: &mut B) -> io::Result<(u64, Duration)> {
     let mut total_bytes = 0;
@@ -150,7 +146,7 @@ pub fn file_read_time<B: BufRead>(buffer: &mut B) -> io::Result<(u64, Duration)>
     loop {
         let read_len = buffer.fill_buf()?.len();
         if read_len == 0 {
-            return Ok((total_bytes, start_time.elapsed()))
+            return Ok((total_bytes, start_time.elapsed()));
         }
 
         buffer.consume(read_len);
@@ -158,8 +154,11 @@ pub fn file_read_time<B: BufRead>(buffer: &mut B) -> io::Result<(u64, Duration)>
     }
 }
 
-
-pub fn file_read_test<P: AsRef<Path>>(path: P, in_buff_size: usize, out_buff_size: usize) -> io::Result<(u64, Duration)> {
+pub fn file_read_test<P: AsRef<Path>>(
+    path: P,
+    in_buff_size: usize,
+    out_buff_size: usize,
+) -> io::Result<(u64, Duration)> {
     let mut file = BufReader::with_capacity(in_buff_size, File::open(path)?);
     let mut decoded = BufReader::with_capacity(out_buff_size, BzDecoder::new(file));
     let mut total_bytes = 0;
@@ -168,11 +167,10 @@ pub fn file_read_test<P: AsRef<Path>>(path: P, in_buff_size: usize, out_buff_siz
     loop {
         let read_len = decoded.fill_buf()?.len();
         if read_len == 0 {
-            return Ok((total_bytes, start_time.elapsed()))
+            return Ok((total_bytes, start_time.elapsed()));
         }
 
         decoded.consume(read_len);
         total_bytes += read_len as u64;
     }
 }
-

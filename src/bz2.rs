@@ -1,22 +1,17 @@
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
-use std::fs::File;
-use std::hint::black_box;
-// use std::hint::black_box;
-use std::io::{BufReader, Read, BufRead, BufWriter, Write};
-use bzip2::bufread::BzDecoder;
-use format_serde_error::SerdeError;
-use tokio::time::Instant;
-use serde_json::{Number, Value};
 use crate::bench::ProgressCounter;
 use crate::ripe_atlas::traceroute::Traceroute;
 use crate::simple_bench;
+use bzip2::bufread::BzDecoder;
+use format_serde_error::SerdeError;
+use serde_json::Value;
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use tokio::time::Instant;
 
-
-simple_bench!{READ_LINE}
-simple_bench!{PARSE_JSON}
-
-
+simple_bench! {READ_LINE}
+simple_bench! {PARSE_JSON}
 
 // 0 were missing firmware versions
 // Longest measurement required 30341 bytes
@@ -67,10 +62,16 @@ pub fn deserialize_test() -> anyhow::Result<()> {
                 *count += 1;
                 let count = probe_count.entry(v.prb_id).or_default();
                 *count += 1;
-            },
+            }
             Err(e) => {
                 error_count += 1;
-                writeln!(&mut errors, "{}\nItem #{}:\n{}", prettyify_json(&buffer)?, progress, &e)?;
+                writeln!(
+                    &mut errors,
+                    "{}\nItem #{}:\n{}",
+                    prettyify_json(&buffer)?,
+                    progress,
+                    &e
+                )?;
                 // println!("{}", prettyify_json(&buffer)?);
                 println!("Item #{}:\n{}", progress, e);
                 // if error_count >= 1 {
@@ -88,7 +89,10 @@ pub fn deserialize_test() -> anyhow::Result<()> {
         buffer.clear();
     }
 
-    println!("Found a total of {} entries with {} errors", progress, error_count);
+    println!(
+        "Found a total of {} entries with {} errors",
+        progress, error_count
+    );
 
     // println!("Firmware versions:");
     // let mut versions = version_count.into_iter().collect::<Vec<_>>();
@@ -100,7 +104,10 @@ pub fn deserialize_test() -> anyhow::Result<()> {
     // println!("{} were missing firmware versions", missing_fw);
 
     println!("Probe counts:");
-    let mut versions = probe_count.into_iter().map(|(k, v)| (v, k)).collect::<Vec<_>>();
+    let mut versions = probe_count
+        .into_iter()
+        .map(|(k, v)| (v, k))
+        .collect::<Vec<_>>();
     versions.sort();
     for (k, v) in versions {
         println!("\t{}: {}", v, k);
@@ -117,14 +124,13 @@ pub fn deserialize_test() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 pub fn try_convert<R: BufRead>(reader: &mut R) -> anyhow::Result<u64> {
     let mut bytes_in: u64 = 0;
     let mut mock_out = ByteCounter::default();
     let mut progress = ProgressCounter::new(10000);
 
     let mut buffer = String::new();
-    loop  {
+    loop {
         match reader.read_line(&mut buffer)? {
             0 => break,
             x => bytes_in += x as u64,
@@ -139,7 +145,13 @@ pub fn try_convert<R: BufRead>(reader: &mut R) -> anyhow::Result<u64> {
 
         progress.periodic(|count| {
             let ratio = mock_out.count as f64 / bytes_in as f64;
-            println!("Completed {}: {} input / {} output ({:.5} Compression)", count, HumanReadableBytes(bytes_in), HumanReadableBytes(mock_out.count), ratio);
+            println!(
+                "Completed {}: {} input / {} output ({:.5} Compression)",
+                count,
+                HumanReadableBytes(bytes_in),
+                HumanReadableBytes(mock_out.count),
+                ratio
+            );
         });
     }
 
@@ -163,14 +175,17 @@ pub fn count_dns_lookups<R: BufRead>(reader: &mut R) -> anyhow::Result<u64> {
 
         progress.periodic(|count| {
             let ratio = dns_lookups as f64 / count as f64;
-            println!("Completed {}: {} lookups ({:.5}%)", count, dns_lookups, ratio * 100.0);
+            println!(
+                "Completed {}: {} lookups ({:.5}%)",
+                count,
+                dns_lookups,
+                ratio * 100.0
+            );
         });
     }
 
     Ok(dns_lookups)
 }
-
-
 
 #[derive(Default, Debug)]
 struct ByteCounter {
@@ -193,19 +208,17 @@ fn prettyify_json(x: &str) -> anyhow::Result<String> {
     serde_json::to_string_pretty(&value).map_err(Into::into)
 }
 
-
-
 pub struct HumanReadableBytes(pub u64);
 
 impl Display for HumanReadableBytes {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        const BYTE_SUFFIX: &'static [&'static str] = &["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+        const BYTE_SUFFIX: &[&str] = &["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
         let mut bytes_float = self.0 as f64;
         let mut suffix = 0;
 
         loop {
             if bytes_float < 1024.0 {
-                return write!(f, "{:.3}{}", bytes_float, BYTE_SUFFIX[suffix])
+                return write!(f, "{:.3}{}", bytes_float, BYTE_SUFFIX[suffix]);
             }
 
             bytes_float /= 1024.0;
