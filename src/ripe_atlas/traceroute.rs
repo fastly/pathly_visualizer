@@ -1,7 +1,13 @@
+use crate::asn::AutonomousSystem;
+use crate::ip::{IPv4Address, IPv6Address};
 use crate::ripe_atlas::serde_utils::skip_empty_in_vec;
 use crate::ripe_atlas::{AddressFamily, Protocol, UnixTimestamp};
+use crate::{ASNTable, GeneralMeasurement};
+use log::error;
 use serde::{Deserialize, Serialize};
+use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
+use std::str::FromStr;
 
 /// https://atlas.ripe.net/docs/apis/result-format/#version-4570
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -126,6 +132,7 @@ pub enum RoundTripTime {
 fn omit_icmp_ttl(ttl: &i64) -> bool {
     *ttl == 1
 }
+
 fn icmp_default_ttl() -> i64 {
     1
 }
@@ -150,3 +157,249 @@ pub enum ICMPError {
     #[serde(rename = "p")]
     PortUnreachable,
 }
+
+impl<'a> GeneralMeasurement<'a, Traceroute<'a>> {
+    pub fn iter_route_asns<'b, 'c>(&'b self, asn_table: &'c ASNTable) -> TracerouteASNIter<'b, 'c> {
+        TracerouteASNIter {
+            trace: self,
+            asn_table,
+            prev: None,
+            index: 0,
+        }
+    }
+
+    pub fn iter_route(&self) -> TracerouteIPIter {
+        TracerouteIPIter {
+            trace: self,
+            index: 0,
+        }
+    }
+}
+
+pub struct TracerouteASNIter<'a, 'b> {
+    trace: &'a GeneralMeasurement<'a, Traceroute<'a>>,
+    asn_table: &'b ASNTable,
+    prev: Option<SmallVec<[&'b AutonomousSystem; 3]>>,
+    index: usize,
+}
+
+impl<'a, 'b> TracerouteASNIter<'a, 'b> {
+    fn find_asn(&self, ip: &str) -> Option<&'b AutonomousSystem> {
+        let result = match self.trace.af {
+            AddressFamily::IPv4 => {
+                IPv4Address::from_str(ip).map(|x| self.asn_table.asn_for_ipv4(x))
+            }
+            AddressFamily::IPv6 => {
+                IPv6Address::from_str(ip).map(|x| self.asn_table.asn_for_ipv6(x))
+            }
+        };
+
+        match result {
+            Ok(v) => v,
+            Err(e) => {
+                let ip_version = self.trace.af as u8;
+                error!("Failed to parse IPv{} {:?}: {:?}", ip_version, ip, e);
+                None
+            }
+        }
+    }
+
+    fn next_hop(&mut self) -> Option<SmallVec<[&'b AutonomousSystem; 3]>> {
+        if self.index > self.trace.result.len() + 1 {
+            return None;
+        }
+
+        self.index += 1;
+        if self.index == 1 {
+            return Some(
+                self.find_asn(self.trace.from.as_ref())
+                    .into_iter()
+                    .collect(),
+            );
+        }
+
+        if self.index == self.trace.result.len() + 2 {
+            return Some(
+                self.find_asn(self.trace.dst_name.as_ref())
+                    .into_iter()
+                    .collect(),
+            );
+        }
+
+        match &self.trace.result[self.index - 2] {
+            TraceHop::Error { .. } => Some(SmallVec::new()),
+            TraceHop::Result { result, .. } => {
+                // Collect ip strings from a given hop
+                let mut unique_ips: SmallVec<[_; 3]> = result
+                    .iter()
+                    .filter_map(|x| match x {
+                        TraceReply::Reply { from, .. } => Some(from.as_ref()),
+                        _ => None,
+                    })
+                    .collect();
+                // Sort and remove duplicate ips from this hop
+                unique_ips.sort_unstable();
+                unique_ips.dedup();
+
+                Some(
+                    unique_ips
+                        .into_iter()
+                        .filter_map(|x| self.find_asn(x))
+                        .collect(),
+                )
+            }
+        }
+    }
+}
+
+impl<'a, 'b> Iterator for TracerouteASNIter<'a, 'b> {
+    type Item = SmallVec<[&'b AutonomousSystem; 3]>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let mut next = self.next_hop()?;
+
+            if next.is_empty() {
+                continue;
+            }
+
+            next.sort_unstable();
+            next.dedup();
+
+            match &mut self.prev {
+                None => {
+                    self.prev = Some(next.clone());
+                    return Some(next);
+                }
+                Some(previous) if &next != previous => {
+                    *previous = next.clone();
+                    return Some(next);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+pub struct TracerouteIPIter<'a> {
+    trace: &'a GeneralMeasurement<'a, Traceroute<'a>>,
+    index: usize,
+}
+
+// impl<'a> TracerouteIPIter<'a> {
+//     fn next_hop(&mut self) -> Option<SmallVec<[&'a str; 3]>> {
+//         if self.index > self.trace.result.len() + 1 {
+//             return None;
+//         }
+//
+//         self.index += 1;
+//         if self.index == 1 {
+//             return Some(smallvec![self.trace.from.as_ref()]);
+//         }
+//
+//         if self.index == self.trace.result.len() + 2 {
+//             return Some(smallvec![self.trace.dst_name.as_ref()]);
+//         }
+//
+//         match &self.trace.result[self.index - 2] {
+//             TraceHop::Error { .. } => Some(SmallVec::new()),
+//             TraceHop::Result { result, .. } => {
+//                 // Collect ip strings from a given hop
+//                 let mut unique_ips: SmallVec<[&str; 3]> = result.iter()
+//                     .filter_map(|x| {
+//                         match x {
+//                             TraceReply::Reply { from, .. } => Some(from.as_ref()),
+//                             _ => None,
+//                         }
+//                     })
+//                     .collect();
+//
+//                 // Sort and remove duplicate ips from this hop
+//                 unique_ips.sort_unstable();
+//                 unique_ips.dedup();
+//                 Some(unique_ips)
+//             }
+//         }
+//     }
+// }
+
+impl<'a> Iterator for TracerouteIPIter<'a> {
+    type Item = SmallVec<[&'a str; 3]>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index > self.trace.result.len() + 1 {
+            return None;
+        }
+
+        self.index += 1;
+        if self.index == 1 {
+            return Some(smallvec![self.trace.from.as_ref()]);
+        }
+
+        if self.index == self.trace.result.len() + 2 {
+            return Some(smallvec![self.trace.dst_name.as_ref()]);
+        }
+
+        match &self.trace.result[self.index - 2] {
+            TraceHop::Error { .. } => Some(SmallVec::new()),
+            TraceHop::Result { result, .. } => {
+                // Collect ip strings from a given hop
+                let mut unique_ips: SmallVec<[&str; 3]> = result
+                    .iter()
+                    .filter_map(|x| match x {
+                        TraceReply::Reply { from, .. } => Some(from.as_ref()),
+                        _ => None,
+                    })
+                    .collect();
+
+                // Sort and remove duplicate ips from this hop
+                unique_ips.sort_unstable();
+                unique_ips.dedup();
+                Some(unique_ips)
+            }
+        }
+        // let mut timeouts = 0;
+        // while let Some(next) = self.next_hop() {
+        //     if next.is_empty() {
+        //         timeouts += 1;
+        //         continue
+        //     }
+        //
+        //     if timeouts > 0 {
+        //         self.index -= 1;
+        //         return Some(Err(Timeout(timeouts)))
+        //     }
+        //
+        //     return Some(Ok(next))
+        // }
+        //
+        // (timeouts > 0).then(|| Err(Timeout(timeouts)))
+
+        // loop {
+        //     let next = self.next_hop()?;
+        //     if next.is_empty() {
+        //         timeouts += 1;
+        //         continue;
+        //     }
+        //
+        //     // match self.prev.replace(next.clone()) {
+        //     //     None | Some(previous) if &next != previous => return Some(next),
+        //     //     _ => {},
+        //     // }
+        //
+        //     // match &mut self.prev {
+        //     //     None => {
+        //     //         self.prev = Some(next.clone());
+        //     //         return Some(next);
+        //     //     }
+        //     //     Some(previous) if &next != previous => {
+        //     //         *previous = next.clone();
+        //     //         return Some(next);
+        //     //     }
+        //     //     _ => {}
+        //     // }
+        // }
+    }
+}
+
+pub struct Timeout(pub u32);

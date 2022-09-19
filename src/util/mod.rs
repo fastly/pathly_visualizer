@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 pub mod bench;
 
 pub mod bzip2;
+pub mod graphviz;
 
 /// A quick and dirty wrapper for a value to print bytes in a more human readable form.
 pub struct HumanBytes(pub u64);

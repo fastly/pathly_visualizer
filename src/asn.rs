@@ -40,9 +40,9 @@ pub async fn cache_latest_asn() -> anyhow::Result<()> {
 
 #[derive(Debug)]
 pub struct AutonomousSystem {
-    num: u32,
-    country_code: Option<String>,
-    name: String,
+    pub num: u32,
+    pub country_code: Option<String>,
+    pub name: String,
 }
 
 impl PartialEq for AutonomousSystem {
@@ -104,6 +104,7 @@ impl ASNTable {
             buffer.clear();
         }
 
+        info!("Finished loading ASN table");
         Ok(this)
     }
 
