@@ -16,6 +16,7 @@ use tokio::runtime::Builder;
 mod asn;
 mod env;
 mod ip;
+mod plots;
 mod rate_limit;
 mod ripe_atlas;
 mod traceroute_layout;
@@ -35,13 +36,14 @@ fn main() {
 }
 
 async fn async_main() {
-    info!("Fetching ASN table...");
     let asn_table = ASNTable::fetch_and_load();
 
     let http_client = Client::new();
 
     let results_request = MeasurementResultsRequest::default();
     let results: Vec<GeneralMeasurement<Traceroute>> =
+        // 45059282 for IPv6
+        // 45012592 for IPv4
         fetch_measurement_results(&http_client, 45059282, &results_request)
             .await
             .expect("Successfully retrieved results");
@@ -57,25 +59,50 @@ async fn async_main() {
         probe_color: Some("lightblue".to_string()),
         destination_color: Some("lightpink".to_string()),
         cluster_asn: true,
+        // weighted_edges: true,
+
+        // omit_timeouts: false,
+        outbound_weighted_edges: true,
         ..GraphConfig::default()
     };
 
-    let mut graph = build_graph(&results, &asn_table, &config);
-    graph.internalize_cluster_edges();
-    graph.set_graph_properties(&["newrank=true"]);
-
-    graph.save_png("imgs/normal.png").expect("saved correctly");
-
-    // Do special treatment for probe 45790 since it seems to struggle
-    let probe_35790: Vec<_> = results.into_iter().filter(|x| x.prb_id == 35790).collect();
-
-    let mut graph = build_graph(&probe_35790, &asn_table, &config);
+    let stable_probes: Vec<_> = results
+        .iter()
+        .filter(|x| x.prb_id != 35790)
+        .cloned()
+        .collect();
+    let mut graph = build_graph(&stable_probes, &asn_table, &config);
     graph.internalize_cluster_edges();
     graph.set_graph_properties(&["newrank=true"]);
 
     graph
-        .save_png("imgs/probe_35790.png")
+        .save_png("imgs/all_nodes.png")
         .expect("saved correctly");
+
+    // Do special treatment for probe 45790 since it seems to struggle
+    // if probes.contains(&35790) {
+    //     let probe_35790: Vec<_> = results.into_iter().filter(|x| x.prb_id == 35790).collect();
+    //     info!("{} samples", probe_35790.len());
+    //
+    //     let config = GraphConfig {
+    //         probe_color: Some("lightblue".to_string()),
+    //         destination_color: Some("lightpink".to_string()),
+    //         cluster_asn: true,
+    //         // weighted_edges: true,
+    //         // omit_timeouts: true,
+    //         outbound_weighted_edges: true,
+    //         ..GraphConfig::default()
+    //     };
+    //
+    //     let mut graph = build_graph(&probe_35790, &asn_table, &config);
+    //     graph.internalize_cluster_edges();
+    //     graph.set_graph_properties(&[]);
+    //     // graph.set_graph_properties(&["newrank=true"]);
+    //
+    //     graph
+    //         .save_png("imgs/probe_35790.png")
+    //         .expect("saved correctly");
+    // }
 }
 
 fn setup_logging() {

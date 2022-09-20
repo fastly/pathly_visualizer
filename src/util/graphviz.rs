@@ -145,6 +145,7 @@ pub struct DirectedEdge {
     dst: String,
     label: Option<String>,
     line_weight: Option<f32>,
+    weight: Option<f32>,
     constraint: bool,
 }
 
@@ -155,6 +156,7 @@ impl DirectedEdge {
             dst,
             label: None,
             line_weight: None,
+            weight: None,
             constraint: true,
         }
     }
@@ -175,6 +177,11 @@ impl DirectedEdge {
 
     pub fn constraint(mut self, constraint: bool) -> Self {
         self.constraint = constraint;
+        self
+    }
+
+    pub fn weight(mut self, weight: f32) -> Self {
+        self.weight.replace(weight);
         self
     }
 
@@ -269,6 +276,7 @@ pub struct NodeAttributes {
     label: Option<String>,
     style: Option<String>,
     color: Option<String>,
+    misc: HashMap<String, String>,
 }
 
 impl Hash for NodeAttributes {
@@ -292,7 +300,15 @@ impl NodeAttributes {
             label: None,
             style: None,
             color: None,
+            misc: HashMap::new(),
         }
+    }
+
+    pub fn attr<S: AsRef<str>>(mut self, name: S, value: S) -> Self {
+        assert!(name.as_ref().chars().all(char::is_alphanumeric));
+        self.misc
+            .insert(name.as_ref().to_string(), value.as_ref().to_string());
+        self
     }
 
     pub fn label<S: AsRef<str>>(mut self, label: S) -> Self {
@@ -325,6 +341,10 @@ impl NodeAttributes {
             .as_ref()
             .map(|x| write!(&mut attributes, "color={:?} ", x))
             .transpose()?;
+
+        self.misc
+            .iter()
+            .try_for_each(|(k, v)| write!(&mut attributes, "{}={:?} ", k, v))?;
 
         if !attributes.is_empty() {
             write!(buffer, "{:?} [", &self.node)?;

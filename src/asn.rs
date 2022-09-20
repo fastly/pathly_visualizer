@@ -5,11 +5,12 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
 use std::fs::File;
-use std::io;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::time::Duration;
+use std::{fs, io};
 use tokio::io::{AsyncWriteExt, BufWriter};
 
 const ASN_TABLE_API: &str = "https://iptoasn.com/data/ip2asn-combined.tsv.gz";
@@ -79,7 +80,15 @@ pub struct ASNTable {
 
 impl ASNTable {
     pub async fn fetch_and_load() -> anyhow::Result<Self> {
-        cache_latest_asn().await?;
+        let should_refresh_cache = fs::metadata(CACHE_PATH)
+            .and_then(|x| x.modified())
+            .ok()
+            .and_then(|x| Some(x.elapsed().ok()? > Duration::from_secs(3600)))
+            .unwrap_or(true);
+
+        if should_refresh_cache {
+            cache_latest_asn().await?;
+        }
         Ok(Self::from_cached(CACHE_PATH)?)
     }
 
@@ -97,7 +106,7 @@ impl ASNTable {
         while reader.read_line(&mut buffer)? > 0 {
             match this.add_asn_entry(&buffer) {
                 Ok(_) => {}                         // Succeeded
-                Err(ASNParseError::NotRouted) => {} // Not routed so no need to record it
+                Err(ASNParseError::NotRouted) => {} // Not routed; no need to record it
                 Err(e) => error!("Got Error {:?} while reading ASN line: {:?}", e, &buffer),
             }
 
