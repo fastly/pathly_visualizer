@@ -55,13 +55,27 @@ async fn async_main() {
 
     let config = GraphConfig {
         probe_color: Some("lightblue".to_string()),
+        destination_color: Some("lightpink".to_string()),
         cluster_asn: true,
         ..GraphConfig::default()
     };
 
-    let graph = build_graph(&results, &asn_table, &config);
+    let mut graph = build_graph(&results, &asn_table, &config);
+    graph.internalize_cluster_edges();
+    graph.set_graph_properties(&["newrank=true"]);
 
-    graph.save("trace_graph.viz").expect("Able to save file");
+    graph.save_png("imgs/normal.png").expect("saved correctly");
+
+    // Do special treatment for probe 45790 since it seems to struggle
+    let probe_35790: Vec<_> = results.into_iter().filter(|x| x.prb_id == 35790).collect();
+
+    let mut graph = build_graph(&probe_35790, &asn_table, &config);
+    graph.internalize_cluster_edges();
+    graph.set_graph_properties(&["newrank=true"]);
+
+    graph
+        .save_png("imgs/probe_35790.png")
+        .expect("saved correctly");
 }
 
 fn setup_logging() {

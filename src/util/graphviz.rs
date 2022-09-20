@@ -1,18 +1,57 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io;
-use std::io::{BufWriter, ErrorKind, Write};
+use std::io::ErrorKind::{BrokenPipe, Other};
+use std::io::{BufWriter, Error, ErrorKind, Write};
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 #[derive(Default, Debug)]
 pub struct DigraphDotFile {
     clusters: Vec<NodeCluster>,
     edges: HashSet<DirectedEdge>,
     decorated_nodes: HashSet<NodeAttributes>,
+    misc_properties: Vec<String>,
 }
 
 impl DigraphDotFile {
+    pub fn internalize_cluster_edges(&mut self) {
+        let cluster_map: HashMap<String, usize> = self
+            .clusters
+            .iter()
+            .enumerate()
+            .flat_map(|(index, cluster)| cluster.nodes.iter().map(move |x| (x.to_owned(), index)))
+            .collect();
+
+        let mut old_edges = HashSet::with_capacity(self.edges.capacity());
+        std::mem::swap(&mut old_edges, &mut self.edges);
+
+        for edge in old_edges {
+            match (cluster_map.get(&edge.src), cluster_map.get(&edge.dst)) {
+                (Some(x), Some(y)) if x == y => self.clusters[*x].edges.insert(edge),
+                _ => self.edges.insert(edge),
+            };
+        }
+    }
+
+    pub fn remove_global_edge_constraints(&mut self) {
+        // I don't think this should require std::mem::take? It should be fine to move out of a
+        // mutable reference so long as the value is replaced. Did something get pinned?
+        self.edges = std::mem::take(&mut self.edges)
+            .into_iter()
+            .map(|x| x.constraint(false))
+            .collect();
+    }
+
+    pub fn set_graph_properties(&mut self, properties: &[&str]) {
+        self.misc_properties = properties.iter().copied().map(str::to_owned).collect();
+    }
+
+    pub fn add_graph_properties<S: AsRef<str>>(&mut self, property: S) {
+        self.misc_properties.push(property.as_ref().to_owned());
+    }
+
     /// Adds a new directed edge to the graph, but will not overwrite existing edges
     pub fn edge(&mut self, src: String, dst: String) {
         let edge = DirectedEdge::new(src, dst);
@@ -36,6 +75,36 @@ impl DigraphDotFile {
         self.clusters.push(cluster);
     }
 
+    pub fn save_png<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        let mut child = Command::new("dot")
+            .arg("-Tpng")
+            .arg(format!("-o{}", path.as_ref().display()))
+            .stdout(Stdio::null())
+            .stdin(Stdio::piped())
+            .spawn()?;
+
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| Error::new(BrokenPipe, "Unable to connect to child stdin"))?;
+
+        let mut file = BufWriter::new(stdin);
+        self.to_writer(&mut file)?;
+        file.flush()?;
+
+        // Explicitly drop file so it get closed and the child process gets EOF
+        drop(file);
+
+        match child.wait()?.code() {
+            Some(0) => Ok(()),
+            None => Err(Error::new(Other, "graphviz exited prematurely")),
+            Some(x) => Err(Error::new(
+                Other,
+                format!("graphviz exited with status code {}", x),
+            )),
+        }
+    }
+
     pub fn save<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         let mut file = BufWriter::new(File::create(path)?);
         self.to_writer(&mut file)?;
@@ -46,6 +115,11 @@ impl DigraphDotFile {
         writeln!(buffer, "digraph G {{")?;
 
         let mut indented = Indented::from(buffer.by_ref());
+
+        // Add misc properties
+        self.misc_properties
+            .iter()
+            .try_for_each(|x| writeln!(&mut indented, "{};", x))?;
 
         // Write clusters
         self.clusters
@@ -71,6 +145,7 @@ pub struct DirectedEdge {
     dst: String,
     label: Option<String>,
     line_weight: Option<f32>,
+    constraint: bool,
 }
 
 impl DirectedEdge {
@@ -80,6 +155,7 @@ impl DirectedEdge {
             dst,
             label: None,
             line_weight: None,
+            constraint: true,
         }
     }
 
@@ -87,18 +163,29 @@ impl DirectedEdge {
         self.label.is_some() || self.line_weight.is_some()
     }
 
-    pub fn label(&mut self, label: String) {
+    pub fn label(mut self, label: String) -> Self {
         self.label.replace(label);
+        self
     }
 
-    pub fn line_weight(&mut self, weight: f32) {
+    pub fn line_weight(mut self, weight: f32) -> Self {
         self.line_weight.replace(weight);
+        self
+    }
+
+    pub fn constraint(mut self, constraint: bool) -> Self {
+        self.constraint = constraint;
+        self
     }
 
     fn write<B: Write>(&self, buffer: &mut B) -> io::Result<()> {
         let mut attributes = Vec::new();
         if let Some(label) = &self.label {
             write!(&mut attributes, "label={:?} ", label)?;
+        }
+
+        if !self.constraint {
+            attributes.extend_from_slice(b"constraint=false ");
         }
 
         if let Some(weight) = self.line_weight {
@@ -138,11 +225,16 @@ impl Eq for DirectedEdge {}
 pub struct NodeCluster {
     name: String,
     nodes: HashSet<String>,
+    edges: HashSet<DirectedEdge>,
 }
 
 impl NodeCluster {
     pub fn new(name: String, nodes: HashSet<String>) -> Self {
-        NodeCluster { name, nodes }
+        NodeCluster {
+            name,
+            nodes,
+            edges: HashSet::new(),
+        }
     }
 
     pub fn push_node(&mut self, node: String) {
@@ -160,6 +252,10 @@ impl NodeCluster {
 
         for node in &self.nodes {
             writeln!(indented, "{:?};", node)?;
+        }
+
+        for edge in &self.edges {
+            edge.write(&mut indented)?;
         }
 
         writeln!(buffer, "}}")?;
@@ -289,7 +385,7 @@ impl<W: Write> Write for Indented<W> {
         // may get the incorrect impression that no more bytes can be written. In this case give an
         // interrupted error to request that the operation be retried.
         if index == 0 && hidden_bytes_written > 0 {
-            return Err(io::Error::from(ErrorKind::Interrupted));
+            return Err(Error::from(ErrorKind::Interrupted));
         }
 
         Ok(index)

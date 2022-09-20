@@ -34,6 +34,7 @@ pub fn build_graph(
             trace
                 .iter_route()
                 .filter(|x| !x.is_empty())
+                .dedup()
                 .tuple_windows()
                 .flat_map(|(src, dst)| iproduct!(src, dst))
                 .for_each(|(src, dst)| dot_file.edge(src.to_owned(), dst.to_owned()));
@@ -53,7 +54,8 @@ pub fn build_graph(
         for trace in traces {
             let attrs = NodeAttributes::new(trace.from.to_string())
                 .style("filled")
-                .color(color);
+                .color(color)
+                .label(format!("Probe {}", trace.prb_id));
 
             dot_file.node(attrs)
         }

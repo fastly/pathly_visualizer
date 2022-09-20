@@ -1,7 +1,7 @@
 use bzip2::bufread::BzDecoder;
-use std::ffi::OsString;
 use std::fs::File;
-use std::io::{BufReader, Error, ErrorKind, IoSliceMut, Read};
+use std::io::ErrorKind::BrokenPipe;
+use std::io::{BufReader, Error, IoSliceMut, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::{env, io};
@@ -17,7 +17,7 @@ fn has_executable<P: AsRef<Path>>(name: P) -> Option<PathBuf> {
     platform_specific_resolution(path)
 }
 
-#[cfg(target_os = "unix")]
+#[cfg(unix)]
 fn platform_specific_resolution(name: &Path) -> Option<PathBuf> {
     let path = env::var_os("PATH")?;
 
@@ -58,7 +58,7 @@ fn win_search_location(path: &Path, path_ext: &[PathBuf]) -> Option<PathBuf> {
     }
 
     // Try each extension
-    let mut path_buffer = OsString::with_capacity(path.as_os_str().len() + 8);
+    let mut path_buffer = std::ffi::OsString::with_capacity(path.as_os_str().len() + 8);
     for extension in path_ext {
         path_buffer.clear();
         path_buffer.push(path.as_os_str());
@@ -164,7 +164,7 @@ impl BzipDecoderStream {
         let stdout = child
             .stdout
             .take()
-            .ok_or_else(|| Error::new(ErrorKind::BrokenPipe, "Stdout pipe not found"))?;
+            .ok_or_else(|| Error::new(BrokenPipe, "Stdout pipe not found"))?;
 
         Ok(BzipDecoderStream {
             stream: Box::new(stdout),
