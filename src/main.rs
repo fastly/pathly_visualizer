@@ -5,31 +5,28 @@ mod dump;
 mod message;
 
 use crate::dump::index_table::PeerIndexTable;
-use crate::dump::PEER_INDEX_TABLE;
-use crate::message::{BGPChunks, MRTCommonHeader, MrtType};
-use byteorder::{BigEndian, ByteOrder};
+use crate::message::{parse_common_header, BGPChunks};
+use bgp_models::mrt::EntryType::TABLE_DUMP_V2;
+use bgp_models::mrt::TableDumpV2Type;
 use bytes::BytesMut;
 use flate2::bufread::GzDecoder;
-use std::collections::{HashMap, HashSet};
+use num_traits::FromPrimitive;
 use std::fs::File;
-use std::io::ErrorKind::{InvalidInput, UnexpectedEof};
-use std::io::{self, Error, Read};
-use std::io::{BufRead, BufReader};
+use std::io;
+use std::io::BufReader;
 use std::time::Instant;
 
 fn main() -> io::Result<()> {
     let input_file = "C:\\Users\\Jasper\\Downloads\\bview.20220911.0800.gz";
-    let mut file = BufReader::new(File::open(input_file)?);
+    let file = BufReader::new(File::open(input_file)?);
 
-    let mut file = GzDecoder::new(file);
+    let file = GzDecoder::new(file);
 
     let start_time = Instant::now();
 
     let mut num_msgs = 0;
     let mut total_length = 0;
     let mut max_msg_len = 0;
-
-    // let mut msg_counts: HashMap<_, u64> = HashMap::new();
 
     for msg in BGPChunks::new(file) {
         let msg = msg?;
@@ -40,27 +37,7 @@ fn main() -> io::Result<()> {
         if let Err(e) = handle_bgp_message(msg) {
             eprintln!("{:?}", e);
         }
-
-        // if let Ok(header) = MRTCommonHeader::try_from(&*msg) {
-        //     let msg_type = (
-        //         header.msg_type().expect("Valid message type"),
-        //         header.sub_type(),
-        //     );
-        //     *msg_counts.entry(msg_type).or_default() += 1;
-        //
-        //     if header.msg_type()
-        // }
     }
-
-    // let mut msg_counts_ordered = msg_counts
-    //     .into_iter()
-    //     .map(|(k, v)| (v, k))
-    //     .collect::<Vec<_>>();
-    // msg_counts_ordered.sort_unstable();
-    //
-    // for (count, id) in msg_counts_ordered {
-    //     println!("\t{:?}: {}", id, count);
-    // }
 
     println!("Number of messages: {}", num_msgs);
     println!("Average message length: {}", total_length / num_msgs);
@@ -76,10 +53,18 @@ fn main() -> io::Result<()> {
 
 /// I'm still not sure what data I want to collect from this
 fn handle_bgp_message(data: BytesMut) -> io::Result<()> {
-    let header = MRTCommonHeader::try_from(&*data)?;
+    let mut buffer = &*data;
+    let header = parse_common_header(&mut buffer)?;
 
-    if header.msg_type()? == MrtType::TABLE_DUMP_V2 && header.sub_type() == PEER_INDEX_TABLE {
-        let index_table = PeerIndexTable::try_from(&(&*data)[MRTCommonHeader::LENGTH..])?;
+    if header.entry_type == TABLE_DUMP_V2
+        && TableDumpV2Type::from_u16(header.entry_subtype) == Some(TableDumpV2Type::PeerIndexTable)
+    {
+        let index_table = PeerIndexTable::try_from(buffer)?;
+        for peer in index_table.peer_table {
+            println!("{:?}", peer);
+        }
+
+        println!("View name: {:?}", index_table.view_name);
         println!("Succeeded in building index table!");
     }
 

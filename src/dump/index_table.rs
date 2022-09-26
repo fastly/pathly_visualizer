@@ -3,7 +3,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io;
 use std::io::ErrorKind::InvalidData;
 use std::io::{BufRead, Error};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 #[derive(Debug)]
 pub struct PeerIndexTable {
