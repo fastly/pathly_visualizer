@@ -97,7 +97,7 @@ pub struct MRTCommonHeader<'a> {
 
 impl<'a> MRTCommonHeader<'a> {
     /// The header occupies 12 bytes at the start of each message
-    const LENGTH: usize = 12;
+    pub const LENGTH: usize = 12;
 
     pub fn timestamp(&self) -> u32 {
         BigEndian::read_u32(&self.buffer[0..4])
