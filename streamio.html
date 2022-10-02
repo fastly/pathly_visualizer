@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <a href="" id="a">Click to download file</a>
+    <button onclick="download('myfilename.txt', 'text/plain')">Create file</button>
+    <br>
+    <p>Traceroute</p>
+    <div id="div">
+
+    </div>
+</body>
+<script src="https://atlas-stream.ripe.net/socket.io.js"></script>
+<script>
+
+    var resultArr = []
+
+    // Create a connection (it can be also http on port 80)
+    var socket = io("https://atlas-stream.ripe.net:443", { path : "/stream/socket.io" });
+
+    // Subscribe to results coming from all the probes involved in the measurement 45545538
+    socket.emit("atlas_subscribe", { stream_type: "result", msm: 45545538 });
+
+    // Declare a callback to be executed when a measurement result is received
+    socket.on("atlas_result", function(result){
+        console.log("I received ", result);
+        resultArr.push(result)
+
+        var div = document.getElementById("div")
+        div.appendChild(document.createElement("br"))
+        let timestamp = result.timestamp
+        var date = new Date(timestamp * 1000).toLocaleString()
+        div.append(date)
+        div.appendChild(document.createElement("br"))
+
+        let routeString = ""
+
+        for(let i = 0; i < result.result.length; i++){
+            routeString = routeString.concat("->", result.result[i].result[0].from)
+        }
+
+        div.append(routeString)
+    });
+
+    function download(name, type){
+        for(let i = 0; i < resultArr.length; i++){
+            if(typeof(resultArr[i]) == "object"){
+                resultArr[i] = JSON.stringify(resultArr[i])
+            }
+        }
+        var a = document.getElementById('a')
+        var file = new Blob([resultArr], {type: type})
+        a.href = URL.createObjectURL(file)
+        a.download = name
+    }
+
+</script>
+</html>
