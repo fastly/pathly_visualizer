@@ -1,0 +1,5 @@
+# Contains configuration and private keys for services like RIPE Atlas
+.env
+
+# Lockfile for go dependencies
+go.sum
