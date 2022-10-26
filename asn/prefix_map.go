@@ -28,7 +28,7 @@ func (prefixMap *PrefixMap[T]) Clear() {
 }
 
 func (prefixMap *PrefixMap[T]) Set(prefix netip.Prefix, value T) {
-	prefixMap.inner[prefix] = value
+	prefixMap.inner[prefix.Masked()] = value
 
 	if prefix.Addr().Is4() {
 		prefixMap.ipv4.add(prefix.Bits())
@@ -38,7 +38,7 @@ func (prefixMap *PrefixMap[T]) Set(prefix netip.Prefix, value T) {
 }
 
 func (prefixMap *PrefixMap[T]) Get(prefix netip.Prefix) (value T, present bool) {
-	value, present = prefixMap.inner[prefix]
+	value, present = prefixMap.inner[prefix.Masked()]
 	return
 }
 
@@ -50,7 +50,7 @@ func (prefixMap *PrefixMap[T]) GetAddr(addr netip.Addr) (value T, present bool) 
 	}
 
 	for bits := bitRange.max; bits >= bitRange.min && !present; bits-- {
-		prefix := netip.PrefixFrom(addr, bits)
+		prefix := netip.PrefixFrom(addr, bits).Masked()
 		value, present = prefixMap.inner[prefix]
 	}
 
@@ -58,7 +58,7 @@ func (prefixMap *PrefixMap[T]) GetAddr(addr netip.Addr) (value T, present bool) 
 }
 
 func (prefixMap *PrefixMap[T]) Remove(prefix netip.Prefix) {
-	delete(prefixMap.inner, prefix)
+	delete(prefixMap.inner, prefix.Masked())
 }
 
 type prefixBitRange struct {
