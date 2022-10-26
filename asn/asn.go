@@ -9,12 +9,12 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 )
 
-type Example uint32
-
 type IpToAsn struct {
-	asnMap PrefixMap[uint32]
+	asnMap      PrefixMap[uint32]
+	lastRefresh time.Time
 }
 
 func CreateIpToAsn() (ipToAsn IpToAsn, err error) {
@@ -23,7 +23,13 @@ func CreateIpToAsn() (ipToAsn IpToAsn, err error) {
 	return
 }
 
+func (ipToAsn *IpToAsn) LastRefresh() time.Time {
+	return ipToAsn.lastRefresh
+}
+
 func (ipToAsn *IpToAsn) Refresh() (err error) {
+	ipToAsn.lastRefresh = time.Now()
+
 	var searchUrl string
 	searchUrl, err = latestCaicdaData("https://publicdata.caida.org/datasets/routing/routeviews-prefix2as/")
 	if err != nil {
