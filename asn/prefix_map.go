@@ -66,7 +66,7 @@ type prefixBitRange struct {
 	max int
 }
 
-func (bitRange prefixBitRange) add(value int) {
+func (bitRange *prefixBitRange) add(value int) {
 	if value < bitRange.min {
 		bitRange.min = value
 	}
