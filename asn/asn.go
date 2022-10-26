@@ -44,6 +44,14 @@ func (ipToAsn *IpToAsn) Refresh() (err error) {
 	return
 }
 
+func (ipToAsn *IpToAsn) Get(addr netip.Addr) (asn uint32, present bool) {
+	return ipToAsn.asnMap.GetAddr(addr)
+}
+
+func (ipToAsn *IpToAsn) Length() int {
+	return ipToAsn.asnMap.Length()
+}
+
 func (ipToAsn *IpToAsn) refreshFromUrl(url string) error {
 	response, err := http.Get(url)
 	if err != nil {

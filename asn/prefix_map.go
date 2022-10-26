@@ -17,6 +17,10 @@ func MakePrefixMap[T any]() PrefixMap[T] {
 	}
 }
 
+func (prefixMap *PrefixMap[T]) Length() int {
+	return len(prefixMap.inner)
+}
+
 func (prefixMap *PrefixMap[T]) Clear() {
 	prefixMap.inner = make(map[netip.Prefix]T)
 	prefixMap.ipv4 = prefixBitRange{32, 0}
