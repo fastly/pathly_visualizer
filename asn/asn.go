@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+const (
+	CaidaPrefix2AsnIpv4   = "https://publicdata.caida.org/datasets/routing/routeviews-prefix2as/"
+	CaidaPrefix2AsnIpv6   = "https://publicdata.caida.org/datasets/routing/routeviews6-prefix2as/"
+	Prefix2AsnCreationLog = "pfx2as-creation.log"
+)
+
 type IpToAsn struct {
 	asnMap      PrefixMap[uint32]
 	lastRefresh time.Time
@@ -30,24 +36,20 @@ func (ipToAsn *IpToAsn) LastRefresh() time.Time {
 func (ipToAsn *IpToAsn) Refresh() (err error) {
 	ipToAsn.lastRefresh = time.Now()
 
+	if err = ipToAsn.refreshFromSource(CaidaPrefix2AsnIpv4); err != nil {
+		return
+	}
+
+	return ipToAsn.refreshFromSource(CaidaPrefix2AsnIpv6)
+}
+
+func (ipToAsn *IpToAsn) refreshFromSource(searchDir string) (err error) {
 	var searchUrl string
-	searchUrl, err = latestCaicdaData("https://publicdata.caida.org/datasets/routing/routeviews-prefix2as/")
-	if err != nil {
+	if searchUrl, err = latestCaidaData(searchDir); err != nil {
 		return
 	}
 
-	err = ipToAsn.refreshFromUrl(searchUrl)
-	if err != nil {
-		return
-	}
-
-	searchUrl, err = latestCaicdaData("https://publicdata.caida.org/datasets/routing/routeviews6-prefix2as/")
-	if err != nil {
-		return
-	}
-
-	err = ipToAsn.refreshFromUrl(searchUrl)
-	return
+	return ipToAsn.refreshFromUrl(searchUrl)
 }
 
 func (ipToAsn *IpToAsn) Get(addr netip.Addr) (asn uint32, present bool) {
@@ -58,14 +60,14 @@ func (ipToAsn *IpToAsn) Length() int {
 	return ipToAsn.asnMap.Length()
 }
 
-func (ipToAsn *IpToAsn) refreshFromUrl(url string) error {
-	response, err := http.Get(url)
-	if err != nil {
+func (ipToAsn *IpToAsn) refreshFromUrl(url string) (err error) {
+	var response *http.Response
+	if response, err = http.Get(url); err != nil {
 		return err
 	}
 
-	gzipReader, err := gzip.NewReader(response.Body)
-	if err != nil {
+	var gzipReader *gzip.Reader
+	if gzipReader, err = gzip.NewReader(response.Body); err != nil {
 		return err
 	}
 
@@ -88,8 +90,6 @@ func (ipToAsn *IpToAsn) refreshFromUrl(url string) error {
 }
 
 // Parses a line to extract info about the range of addresses and the ASN it refers to.
-//
-// Note: If an ip range is not routed (determined by checking if asn is 0), no other information will be parsed.
 func parseAsnLine(input string) (prefix netip.Prefix, asn uint32, err error) {
 	segments := strings.SplitN(input, "\t", 3)
 
@@ -99,14 +99,12 @@ func parseAsnLine(input string) (prefix netip.Prefix, asn uint32, err error) {
 	}
 
 	var addr netip.Addr
-	addr, err = netip.ParseAddr(segments[0])
-	if err != nil {
+	if addr, err = netip.ParseAddr(segments[0]); err != nil {
 		return
 	}
 
 	var parsedInt uint64
-	parsedInt, err = strconv.ParseUint(segments[1], 10, 8)
-	if err != nil {
+	if parsedInt, err = strconv.ParseUint(segments[1], 10, 8); err != nil {
 		return
 	}
 
@@ -124,26 +122,22 @@ func parseAsnLine(input string) (prefix netip.Prefix, asn uint32, err error) {
 	return
 }
 
-func latestCaicdaData(searchDir string) (url string, err error) {
-	response, httpErr := http.Get(searchDir + "pfx2as-creation.log")
-	if httpErr != nil {
-		err = httpErr
+func latestCaidaData(searchDir string) (url string, err error) {
+	var response *http.Response
+	if response, err = http.Get(searchDir + Prefix2AsnCreationLog); err != nil {
 		return
 	}
 
 	scanner := bufio.NewScanner(response.Body)
 
 	lastLine := ""
-
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line != "" {
+		if line := scanner.Text(); line != "" {
 			lastLine = line
 		}
 	}
 
-	err = scanner.Err()
-	if err != nil {
+	if err = scanner.Err(); err != nil {
 		return
 	}
 

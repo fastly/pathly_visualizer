@@ -11,9 +11,9 @@ type PrefixMap[T any] struct {
 
 func MakePrefixMap[T any]() PrefixMap[T] {
 	return PrefixMap[T]{
-		make(map[netip.Prefix]T),
-		prefixBitRange{32, 0},
-		prefixBitRange{128, 0},
+		inner: make(map[netip.Prefix]T),
+		ipv4:  prefixBitRange{min: 32, max: 0},
+		ipv6:  prefixBitRange{min: 128, max: 0},
 	}
 }
 
@@ -23,17 +23,17 @@ func (prefixMap *PrefixMap[T]) Length() int {
 
 func (prefixMap *PrefixMap[T]) Clear() {
 	prefixMap.inner = make(map[netip.Prefix]T)
-	prefixMap.ipv4 = prefixBitRange{32, 0}
-	prefixMap.ipv6 = prefixBitRange{128, 0}
+	prefixMap.ipv4 = prefixBitRange{min: 32, max: 0}
+	prefixMap.ipv6 = prefixBitRange{min: 128, max: 0}
 }
 
 func (prefixMap *PrefixMap[T]) Set(prefix netip.Prefix, value T) {
 	prefixMap.inner[prefix.Masked()] = value
 
 	if prefix.Addr().Is4() {
-		prefixMap.ipv4.add(prefix.Bits())
+		prefixMap.ipv4.updateRange(prefix.Bits())
 	} else {
-		prefixMap.ipv6.add(prefix.Bits())
+		prefixMap.ipv6.updateRange(prefix.Bits())
 	}
 }
 
@@ -66,7 +66,7 @@ type prefixBitRange struct {
 	max int
 }
 
-func (bitRange *prefixBitRange) add(value int) {
+func (bitRange *prefixBitRange) updateRange(value int) {
 	if value < bitRange.min {
 		bitRange.min = value
 	}
