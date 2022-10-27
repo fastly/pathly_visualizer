@@ -1,0 +1,13 @@
+#Was using this to test http requests, looks like its no working on my end though --> getting 404's
+GET http://localhost:8080/api/hello
+
+###
+
+POST http://localhost:8080/api/hello
+content-type: application/json
+
+{
+  "msg": "testing"
+}
+
+###

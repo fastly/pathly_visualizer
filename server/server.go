@@ -1,11 +1,11 @@
 package main
 
 import (
-	"log"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"log"
+	"net/http"
+	"strings"
 )
 
 func init() {
@@ -40,16 +40,16 @@ func main() {
 	api := router.Group("/api")
 	{
 		//GET rq, basic
-		api.GET("/hello", func(ctx *gin.Context) {
+		api.GET("/get", func(ctx *gin.Context) {
 			ctx.JSON(200, gin.H{"msg": "world"})
 		})
 
 		// POST rq that returns the body of the request
-		api.POST("/hello", func(ctx *gin.Context) {
+		api.POST("/post", func(ctx *gin.Context) {
 			buf := make([]byte, 1024)
 			num, _ := ctx.Request.Body.Read(buf)
 			reqBody := string(buf[0:num])
-			ctx.JSON(200, reqBody)
+			ctx.JSON(200, gin.H{"msg": postRQService(reqBody)})
 		})
 	}
 
@@ -58,4 +58,14 @@ func main() {
 	})
 
 	router.Run(":8080")
+}
+
+// used to test changing response in separate function
+func postRQ(rqBody string) bool {
+	rqSplit := strings.Split(rqBody, "=")
+	if rqSplit[1] == "testing" {
+		return true
+	} else {
+		return false
+	}
 }
