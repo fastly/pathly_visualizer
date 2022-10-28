@@ -128,25 +128,39 @@ func TestPrefixMapOverlapHigherSpecificity(t *testing.T) {
 
 }
 
-func TestPrefixMapEdgeCases(t *testing.T) {
+func TestPrefixMapSingleIP(t *testing.T) {
 	prefixMap := MakePrefixMap[string]()
 
-	// Test some edge cases
-	prefixMap.Set(netip.MustParsePrefix("0.0.0.0/0"), "h")
-	prefixMap.Set(netip.MustParsePrefix("1.2.128.0/17"), "i")
-	prefixMap.Set(netip.MustParsePrefix("1.2.3.4/32"), "j")
-	prefixMap.Set(netip.MustParsePrefix("5.6.7.8/32"), "k")
+	prefixMap.Set(netip.MustParsePrefix("0.0.0.0/32"), "a")
+	prefixMap.Set(netip.MustParsePrefix("135.202.25.19/32"), "b")
+	prefixMap.Set(netip.MustParsePrefix("255.255.255.255/32"), "c")
 
-	expectContains(t, &prefixMap, netip.MustParseAddr("22.1.24.6"), "h")
-	expectContains(t, &prefixMap, netip.MustParseAddr("0.0.0.0"), "h")
-	expectContains(t, &prefixMap, netip.MustParseAddr("255.255.255.255"), "h")
+	prefixMap.Set(netip.MustParsePrefix("::/128"), "d")
+	prefixMap.Set(netip.MustParsePrefix("1f32:1234::abcd/128"), "e")
+	prefixMap.Set(netip.MustParsePrefix("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128"), "f")
 
-	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.133.235"), "i")
-	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.128.0"), "i")
-	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.255.255"), "i")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0.0.0.0"), "a")
+	expectContains(t, &prefixMap, netip.MustParseAddr("135.202.25.19"), "b")
+	expectContains(t, &prefixMap, netip.MustParseAddr("255.255.255.255"), "c")
 
-	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.4"), "j")
-	expectContains(t, &prefixMap, netip.MustParseAddr("5.6.7.8"), "k")
+	expectContains(t, &prefixMap, netip.MustParseAddr("::"), "d")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1f32:1234::abcd"), "e")
+	expectContains(t, &prefixMap, netip.MustParseAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "f")
+}
+
+func TestPrefixMapLargestPrefix(t *testing.T) {
+	prefixMap := MakePrefixMap[string]()
+
+	prefixMap.Set(netip.MustParsePrefix("0.0.0.0/0"), "a")
+	prefixMap.Set(netip.MustParsePrefix("::/0"), "b")
+
+	expectContains(t, &prefixMap, netip.MustParseAddr("0.0.0.0"), "a")
+	expectContains(t, &prefixMap, netip.MustParseAddr("135.202.25.19"), "a")
+	expectContains(t, &prefixMap, netip.MustParseAddr("255.255.255.255"), "a")
+
+	expectContains(t, &prefixMap, netip.MustParseAddr("::"), "b")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1f32:1234::abcd"), "b")
+	expectContains(t, &prefixMap, netip.MustParseAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "b")
 }
 
 func TestPrefixMapBitLenIPv4(t *testing.T) {
