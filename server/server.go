@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	_ "github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
@@ -37,6 +39,11 @@ func main() {
 		ctx.Next()
 	})
 
+	router.LoadHTMLFiles("index.html")
+	router.GET("/", func(ctx *gin.Context) {
+		ctx.HTML(200, "index.html", nil)
+	})
+
 	api := router.Group("/api")
 	{
 		//GET rq, basic
@@ -53,6 +60,11 @@ func main() {
 		})
 	}
 
+	//websocket route
+	router.GET("/ws", func(ctx *gin.Context) {
+		socketHandler(ctx.Writer, ctx.Request)
+	})
+
 	router.NoRoute(func(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{})
 	})
@@ -67,5 +79,40 @@ func postRQ(rqBody string) bool {
 		return true
 	} else {
 		return false
+	}
+}
+
+// websocket testing for scheduling (can be used for live data updates on dashboard)
+var upg = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+func socketHandler(w http.ResponseWriter, r *http.Request) {
+
+	//returning true for now --> wildcard, need to change in actual implementation
+	upg.CheckOrigin = func(r *http.Request) bool {
+		return true
+	}
+
+	conn, err := upg.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("Failed to upgrade socket: ", err)
+		return
+	}
+	defer conn.Close()
+
+	for {
+		t, msg, err := conn.ReadMessage()
+		if err != nil {
+			log.Println("Error during message reading: ", err)
+			break
+		}
+		log.Printf("Received: %s", msg)
+		err = conn.WriteMessage(t, msg)
+		if err != nil {
+			log.Println("Error during message writing: ", err)
+			break
+		}
 	}
 }
