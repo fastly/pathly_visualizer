@@ -19,6 +19,12 @@ func expectContains(t *testing.T, prefixMap *PrefixMap[string], key netip.Addr, 
 	}
 }
 
+func expectDoesNotContain(t *testing.T, prefixMap *PrefixMap[string], key netip.Addr) {
+	if value, present := prefixMap.GetAddr(key); present {
+		t.Fatalf("Expected key %s to not be present, but found \"%s\"", key.String(), value)
+	}
+}
+
 func TestPrefixMap_GetAddr(t *testing.T) {
 	prefixMap := MakePrefixMap[string]()
 
@@ -28,20 +34,98 @@ func TestPrefixMap_GetAddr(t *testing.T) {
 	prefixMap.Set(netip.MustParsePrefix("1.2.3.0/24"), "c")
 	prefixMap.Set(netip.MustParsePrefix("1.2.3.4/32"), "d")
 
-	// Add some prefixes that start with the same bytes as the ones above to try to confuse it
-	prefixMap.Set(netip.MustParsePrefix("0100::/8"), "e")
-	prefixMap.Set(netip.MustParsePrefix("0102::/15"), "f")
-
-	// Try overwriting some prefixes to ensure it handles it correctly
-	prefixMap.Set(netip.MustParsePrefix("1.0.0.0/8"), "g")
-	prefixMap.Set(netip.MustParsePrefix("0100::/8"), "h")
-
 	// Test across IPs of different specificity
-	expectContains(t, &prefixMap, netip.MustParseAddr("1.23.19.23"), "g")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.23.19.23"), "a")
 	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.123.2"), "b")
 	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.0.0"), "b")
 	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.22"), "c")
 	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.4"), "d")
+}
+
+func TestPrefixMapOverwrite(t *testing.T) {
+	prefixMap := MakePrefixMap[string]()
+
+	// Insert IPv4 and IPv6 prefixes into map
+	prefixMap.Set(netip.MustParsePrefix("1.0.0.0/8"), "a")
+	prefixMap.Set(netip.MustParsePrefix("1.2.0.0/16"), "b")
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.0/24"), "c")
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.4/32"), "d")
+
+	prefixMap.Set(netip.MustParsePrefix("0100::/8"), "e")
+	prefixMap.Set(netip.MustParsePrefix("0102::/16"), "f")
+	prefixMap.Set(netip.MustParsePrefix("0102:0300::/24"), "g")
+	prefixMap.Set(netip.MustParsePrefix("0102:0304::/32"), "h")
+
+	// Re-insert the same prefixes in arbitrary order
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.0/24"), "k")
+	prefixMap.Set(netip.MustParsePrefix("0102:0304::/32"), "p")
+	prefixMap.Set(netip.MustParsePrefix("1.2.0.0/16"), "j")
+	prefixMap.Set(netip.MustParsePrefix("0100::/8"), "m")
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.4/32"), "l")
+	prefixMap.Set(netip.MustParsePrefix("0102:0300::/24"), "o")
+	prefixMap.Set(netip.MustParsePrefix("0102::/16"), "n")
+	prefixMap.Set(netip.MustParsePrefix("1.0.0.0/8"), "i")
+
+	// Check if new values are retrieved when picking an address from each prefix
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.34.234.12"), "i")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.0.32"), "j")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.0"), "k")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.4"), "l")
+
+	expectContains(t, &prefixMap, netip.MustParseAddr("0100::"), "m")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102::"), "n")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0300::"), "o")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0304::"), "p")
+}
+
+func TestPrefixMapOverlap(t *testing.T) {
+	prefixMap := MakePrefixMap[string]()
+
+	prefixMap.Set(netip.MustParsePrefix("1.0.0.0/8"), "a")
+	prefixMap.Set(netip.MustParsePrefix("1.2.0.0/16"), "b")
+
+	prefixMap.Set(netip.MustParsePrefix("0100::/8"), "e")
+	prefixMap.Set(netip.MustParsePrefix("0102::/16"), "f")
+	prefixMap.Set(netip.MustParsePrefix("0102:0300::/24"), "g")
+	prefixMap.Set(netip.MustParsePrefix("0102:0304::/32"), "h")
+
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.0/24"), "c")
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.4/32"), "d")
+
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.0.0.0"), "a")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.0.0"), "b")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.0"), "c")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.4"), "d")
+
+	expectContains(t, &prefixMap, netip.MustParseAddr("0100::"), "e")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102::"), "f")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0300::"), "g")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0304::"), "h")
+}
+
+func TestPrefixMapOverlapHigherSpecificity(t *testing.T) {
+	prefixMap := MakePrefixMap[string]()
+
+	// Alternate between IPv4 and IPv6 with more specific versions of similar prefixes
+	prefixMap.Set(netip.MustParsePrefix("1.0.0.0/8"), "a")
+	prefixMap.Set(netip.MustParsePrefix("0102::/16"), "b")
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.0/24"), "c")
+	prefixMap.Set(netip.MustParsePrefix("0102:0304::/30"), "d")
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.5/32"), "e")
+
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("0100::"))
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("01F0::"))
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.0.0"), "a")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.128.0"), "a")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102::"), "b")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0300::"), "b")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.0"), "c")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0304::"), "d")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0305::"), "d")
+	expectContains(t, &prefixMap, netip.MustParseAddr("0102:0305:1234::"), "d")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.4"), "c")
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.3.5"), "e")
+
 }
 
 func TestPrefixMapEdgeCases(t *testing.T) {
