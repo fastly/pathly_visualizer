@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"net/netip"
@@ -65,6 +66,8 @@ func (ipToAsn *IpToAsn) refreshFromUrl(url string) (err error) {
 	if response, err = http.Get(url); err != nil {
 		return err
 	}
+
+	defer closeAndLogErrors("Error while closing HTTP response:", response.Body)
 
 	var gzipReader *gzip.Reader
 	if gzipReader, err = gzip.NewReader(response.Body); err != nil {
@@ -128,6 +131,8 @@ func latestCaidaData(searchDir string) (url string, err error) {
 		return
 	}
 
+	defer closeAndLogErrors("Error while closing HTTP response:", response.Body)
+
 	scanner := bufio.NewScanner(response.Body)
 
 	lastLine := ""
@@ -150,4 +155,10 @@ func latestCaidaData(searchDir string) (url string, err error) {
 
 	url = searchDir + lastLine[lastSeparator+1:]
 	return
+}
+
+func closeAndLogErrors(source string, closer io.Closer) {
+	if err := closer.Close(); err != nil {
+		log.Println(source, err)
+	}
 }
