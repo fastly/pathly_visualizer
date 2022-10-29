@@ -8,6 +8,7 @@ use std::io;
 use std::io::ErrorKind::InvalidData;
 use std::io::{Error, Read, Take};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::slice::from_ref;
 
 #[derive(Debug)]
 pub struct TestRibSubtypes {
@@ -19,7 +20,8 @@ pub struct TestRibSubtypes {
 }
 
 pub fn parse_rib_subtypes(buffer: &mut &[u8], afi: Afi, safi: Safi) -> io::Result<TestRibSubtypes> {
-    // let sequence_number = buffer.read_u32::<NetworkEndian>()?;
+    let sequence_number = buffer.read_u32::<NetworkEndian>()?;
+    let prefix = parse_prefix(buffer, afi)?;
 
     // let prefix_len = buffer.read_u8()?;
     // // if prefix_len > 32 {
@@ -34,15 +36,19 @@ pub fn parse_rib_subtypes(buffer: &mut &[u8], afi: Afi, safi: Safi) -> io::Resul
         sequence_number: buffer.read_u32::<NetworkEndian>()?,
         // prefix_len,
         // prefix,
-        prefix: parse_prefix(buffer, afi)?,
         entries: {
             let num_entries = buffer.read_u16::<NetworkEndian>()?;
             let mut entries = Vec::with_capacity(num_entries as usize);
             for _ in 0..num_entries {
-                entries.push(parse_rib_entry(buffer, Some((afi, safi)))?);
+                entries.push(parse_rib_entry(
+                    buffer,
+                    Some((afi, safi)),
+                    from_ref(&prefix),
+                )?);
             }
             entries
         },
+        prefix,
     })
 }
 
@@ -53,7 +59,11 @@ pub struct RIBEntry {
     pub attribute: Vec<Attribute>,
 }
 
-pub fn parse_rib_entry(buffer: &mut &[u8], rib_type: Option<(Afi, Safi)>) -> io::Result<RIBEntry> {
+pub fn parse_rib_entry(
+    buffer: &mut &[u8],
+    rib_type: Option<(Afi, Safi)>,
+    prefixes: &[NetworkPrefix],
+) -> io::Result<RIBEntry> {
     Ok(RIBEntry {
         peer_index: buffer.read_u16::<NetworkEndian>()?,
         originated_time: buffer.read_u32::<NetworkEndian>()?,
@@ -61,7 +71,7 @@ pub fn parse_rib_entry(buffer: &mut &[u8], rib_type: Option<(Afi, Safi)>) -> io:
             let length = buffer.read_u16::<NetworkEndian>()? as usize;
             let mut attr_buffer = &buffer[..length];
             *buffer = &buffer[length..];
-            parse_attributes(&mut attr_buffer, rib_type)?
+            parse_attributes(&mut attr_buffer, rib_type, prefixes)?
 
             // let mut data = vec![0; length as usize];
             // buffer.read_exact(&mut data)?;
@@ -110,6 +120,7 @@ bitflags! {
 pub fn parse_attributes(
     buffer: &mut &[u8],
     rib_type: Option<(Afi, Safi)>,
+    prefixes: &[NetworkPrefix],
 ) -> io::Result<Vec<Attribute>> {
     let mut attributes = Vec::new();
     while buffer.len() > 0 {
@@ -134,7 +145,7 @@ pub fn parse_attributes(
                 AttributeValue::Origin(origin)
             }
             AttrType::MP_REACHABLE_NLRI => {
-                AttributeValue::MpReachNlri(parse_reachable_nlri(buffer, rib_type)?)
+                AttributeValue::MpReachNlri(parse_reachable_nlri(buffer, rib_type, prefixes)?)
             }
             x => unimplemented!("Parse attribute: {:?}", x),
         };
@@ -149,7 +160,11 @@ pub fn parse_attributes(
     Ok(attributes)
 }
 
-pub fn parse_reachable_nlri(buffer: &mut &[u8], rib_type: Option<(Afi, Safi)>) -> io::Result<Nlri> {
+pub fn parse_reachable_nlri(
+    buffer: &mut &[u8],
+    rib_type: Option<(Afi, Safi)>,
+    prefixes: &[NetworkPrefix],
+) -> io::Result<Nlri> {
     let read_full_info = buffer.get(0) == Some(&0);
 
     let (afi, safi) = match rib_type {
@@ -178,6 +193,15 @@ pub fn parse_reachable_nlri(buffer: &mut &[u8], rib_type: Option<(Afi, Safi)>) -
         )),
         _ => return Err(Error::from(InvalidData)),
     };
+
+    // let nlri_prefixes = if read_full_info {
+    //     // Read 2 placeholder bytes
+    //     buffer.read_exact(&mut [0u8; 2])?;
+    //
+    //
+    // } else {
+    //     prefixes.to_vec()
+    // };
 
     todo!()
 }

@@ -62,7 +62,7 @@ impl<R: Read> Iterator for BGPChunks<R> {
             return None;
         }
 
-        let header = match parse_common_header(&mut &*self.next_chunk) {
+        let header = match parse_common_header(&mut &self.next_chunk[..]) {
             Ok(header) => header,
             Err(_) => {
                 match self.read_at_least(COMMON_HEADER_MIN_LENGTH) {
@@ -77,7 +77,7 @@ impl<R: Read> Iterator for BGPChunks<R> {
                     }
                 }
 
-                parse_common_header(&mut &*self.next_chunk)
+                parse_common_header(&mut &self.next_chunk[..])
                     .expect("should be infallible due to previous read_at_least")
             }
         };
@@ -107,8 +107,9 @@ pub fn header_length(header: &CommonHeader) -> usize {
 pub fn parse_common_header<R: Read>(buffer: &mut R) -> io::Result<CommonHeader> {
     let timestamp = buffer.read_u32::<NetworkEndian>()?;
 
-    let entry_type = EntryType::from_u16(buffer.read_u16::<NetworkEndian>()?)
-        .ok_or_else(|| Error::from(InvalidData))?;
+    let entry_type = buffer.read_u16::<NetworkEndian>()?;
+    let entry_type = EntryType::from_u16(entry_type)
+        .ok_or_else(|| Error::new(InvalidData, format!("Got entry type: {}", entry_type)))?;
     let entry_subtype = buffer.read_u16::<NetworkEndian>()?;
 
     let length = buffer.read_u32::<NetworkEndian>()?;
