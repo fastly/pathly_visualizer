@@ -10,12 +10,18 @@ import (
 
 const RipeAtlasApi string = "https://atlas.ripe.net"
 const GetMeasurementsRoute string = "/api/v2/measurements/"
-const FormatKey string = "/results/?format&key="
 
-func GetTraceRouteData(measurmentID string) (traceroute *Traceroute) {
+func GetTraceRouteData(startTime, endTime, measurmentID string) *[]Traceroute {
+
+	var formatKey = ""
+	if startTime == "" || endTime == "" {
+		formatKey = "/results/?format=json&key="
+	} else {
+		formatKey = "/results/?start=" + startTime + "&stop=" + endTime + "&format=json&key="
+	}
 	// Get the data from url
 	//url format: https://atlas.ripe.net/api/v2/measurements/<Measurement ID>/results/?format=json&key=<Your RIPE Atlas API Key>
-	url := RipeAtlasApi + GetMeasurementsRoute + measurmentID + FormatKey + os.Getenv("API_KEY")
+	url := RipeAtlasApi + GetMeasurementsRoute + measurmentID + formatKey + os.Getenv("API_KEY")
 	resp, err := http.Get(url)
 	if err != nil {
 		//TODO Figure out how to handle errors
@@ -28,20 +34,17 @@ func GetTraceRouteData(measurmentID string) (traceroute *Traceroute) {
 			fmt.Println("Could not close file")
 		}
 	}(resp.Body)
-	//body, err := io.ReadAll(resp.Body)
-	//if err != nil {
-	//	//TODO Figure out how to handle errors
-	//	fmt.Println("Went wrong reading the response body")
-	//}
 
-	traceroute = &Traceroute{}
-	err = json.NewDecoder(resp.Body).Decode(traceroute)
+	//Read in the JSON data
+	var traceroute []Traceroute
+
+	err = json.NewDecoder(resp.Body).Decode(&traceroute)
 	if err != nil {
 		//TODO Figure out how to handle errors
-		fmt.Println("Went wrong reading the response body")
+		fmt.Printf("cannot decode JSON: %v\n", err)
 	}
 
-	return traceroute
+	return &traceroute
 
 }
 
