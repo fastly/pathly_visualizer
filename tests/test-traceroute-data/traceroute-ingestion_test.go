@@ -1,7 +1,6 @@
 package test_traceroute_data
 
 import (
-	"fmt"
 	tracerouteData "github.com/jmeggitt/fastly_anycast_experiments.git/traceroute-data"
 	"github.com/joho/godotenv"
 	"log"
@@ -20,12 +19,55 @@ func init() {
 }
 
 func TestGetTraceRouteData(t *testing.T) {
-	expectedJSON := tracerouteData.Traceroute{}
-	actualJSON := tracerouteData.GetTraceRouteData("1666897839", "1666904714", "46320619")
+	expectedVal := 5040
+	actualVal := (*tracerouteData.GetTraceRouteData("46320619", "1666897839", "1666904714"))[0].Fw
 
-	fmt.Printf("%+v\n", (*actualJSON)[0])
+	if !reflect.DeepEqual(expectedVal, actualVal) {
+		t.Errorf("Got %+v want %+v", actualVal, expectedVal)
+	}
+}
 
-	if reflect.DeepEqual(expectedJSON, actualJSON) {
-		t.Errorf("Got %v want %v", actualJSON, expectedJSON)
+func TestGetTraceRouteDataWithNoTime(t *testing.T) {
+	expectedVal := 5040
+	actualVal := (*tracerouteData.GetTraceRouteData("46320619", "", ""))[0].Fw
+
+	if !reflect.DeepEqual(expectedVal, actualVal) {
+		t.Errorf("Got %+v want %+v", actualVal, expectedVal)
+	}
+}
+
+func TestGetTraceRouteDataKRootIPv4(t *testing.T) {
+	expectedVal := "193.0.14.129"
+	actualVal := (*tracerouteData.GetTraceRouteData("5001", "1666915200", "1667001599"))[0].Dst_addr
+
+	if !reflect.DeepEqual(expectedVal, actualVal) {
+		t.Errorf("Got %+v want %+v", actualVal, expectedVal)
+	}
+}
+
+func TestGetTraceRouteDataKRootIPv6(t *testing.T) {
+	expectedVal := "2001:7fd::1"
+	actualVal := (*tracerouteData.GetTraceRouteData("6001", "1667001600", "1667087999"))[0].Dst_addr
+
+	if !reflect.DeepEqual(expectedVal, actualVal) {
+		t.Errorf("Got %+v want %+v", actualVal, expectedVal)
+	}
+}
+
+func TestGetTraceRouteDataBRootIPv4(t *testing.T) {
+	expectedVal := "199.9.14.201"
+	actualVal := (*tracerouteData.GetTraceRouteData("5010", "1667001600", "1667087999"))[0].Dst_addr
+
+	if !reflect.DeepEqual(expectedVal, actualVal) {
+		t.Errorf("Got %+v want %+v", actualVal, expectedVal)
+	}
+}
+
+func TestGetTraceRouteDataBRootIPv6(t *testing.T) {
+	expectedVal := "2001:500:200::b"
+	actualVal := (*tracerouteData.GetTraceRouteData("6010", "1667001600", "1667087999"))[0].Dst_addr
+
+	if !reflect.DeepEqual(expectedVal, actualVal) {
+		t.Errorf("Got %+v want %+v", actualVal, expectedVal)
 	}
 }
