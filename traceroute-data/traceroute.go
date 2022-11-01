@@ -25,10 +25,29 @@ type Result struct {
 	//Case: Timeout
 	X string //"x" -- "*"
 	//Case Reply
-	Err  string  // error ICMP: "N" (network unreachable,), "H" (destination unreachable), "A" (administratively prohibited), "P" (protocol unreachable), "p" (port unreachable) "h" (string) Unrecognized error codes are represented as integers
-	From string  // IPv4 or IPv6 source address in reply
-	Late int     // number of packets a reply is late, in this case rtt is not present
-	Rtt  float64 // round-trip-time of reply, not present when the response is late
-	Size int     //size of reply
-	Ttl  int     //time-to-live in reply
+	Err  ErrWrapper // error ICMP: "N" (network unreachable,), "H" (destination unreachable), "A" (administratively prohibited), "P" (protocol unreachable), "p" (port unreachable) "h" (string) Unrecognized error codes are represented as integers
+	From string     // IPv4 or IPv6 source address in reply
+	Late int        // number of packets a reply is late, in this case rtt is not present
+	Rtt  float64    // round-trip-time of reply, not present when the response is late
+	Size int        //size of reply
+	Ttl  int        //time-to-live in reply
+}
+
+type ErrWrapper string
+
+func (w *ErrWrapper) UnmarshalJSON(data []byte) (err error) {
+
+	str := string(data)
+	*w = ErrWrapper(str)
+	//if zip, err := strconv.Atoi(string(data)); err == nil {
+	//	str := strconv.Itoa(zip)
+	//	*w = ErrWrapper(str)
+	//	return nil
+	//}
+	//var str string
+	//err = json.Unmarshal(data, &str)
+	//if err != nil {
+	//	return err
+	//}
+	return nil
 }

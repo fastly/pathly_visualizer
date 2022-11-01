@@ -2,21 +2,9 @@ package test_traceroute_data
 
 import (
 	tracerouteData "github.com/jmeggitt/fastly_anycast_experiments.git/traceroute-data"
-	"github.com/joho/godotenv"
-	"log"
 	"reflect"
 	"testing"
 )
-
-func init() {
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Printf("Error loading .env file: %s\n", err.Error())
-		log.Println("Configuration will be loaded from environment variables instead")
-	}
-
-	// Anything else that should be set up before main
-}
 
 func TestGetTraceRouteData(t *testing.T) {
 	expectedVal := 5040

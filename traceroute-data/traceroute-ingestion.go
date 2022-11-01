@@ -19,9 +19,9 @@ func GetTraceRouteData(measurementID, startTime, endTime string) ([]Traceroute, 
 		formatKey = "/results/?start=" + startTime + "&stop=" + endTime + "&format=json"
 	}
 	// Get the data from url
-	//url format: https://atlas.ripe.net/api/v2/measurements/<Measurement ID>/results/?format=json&key=<Your RIPE Atlas API Key>
+	// format: https://atlas.ripe.net/api/v2/measurements/<Measurement ID>/results/?format=json
 	url := RipeAtlasApi + GetMeasurementsRoute + measurementID + formatKey
-	//+ os.Getenv("API_KEY")
+
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Printf("Could not open GET request for traceroute")
