@@ -39,15 +39,5 @@ func (w *ErrWrapper) UnmarshalJSON(data []byte) (err error) {
 
 	str := string(data)
 	*w = ErrWrapper(str)
-	//if zip, err := strconv.Atoi(string(data)); err == nil {
-	//	str := strconv.Itoa(zip)
-	//	*w = ErrWrapper(str)
-	//	return nil
-	//}
-	//var str string
-	//err = json.Unmarshal(data, &str)
-	//if err != nil {
-	//	return err
-	//}
 	return nil
 }
