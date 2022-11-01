@@ -102,17 +102,21 @@ func socketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	socketLoop(conn)
+}
+
+// loop infinitely looking for messages and returning messages to client
+func socketLoop(conn *websocket.Conn) {
 	for {
 		t, msg, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("Error during message reading: ", err)
-			break
+			return
 		}
 		log.Printf("Received: %s", msg)
-		err = conn.WriteMessage(t, msg)
-		if err != nil {
+		if err := conn.WriteMessage(t, msg); err != nil {
 			log.Println("Error during message writing: ", err)
-			break
+			return
 		}
 	}
 }

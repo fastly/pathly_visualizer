@@ -17,11 +17,11 @@
 
     <pre id="output"></pre>
     <script>
-        sktURL = "ws://localhost:8080/ws"
-        c = new WebSocket(sktURL)
+        let c = new WebSocket("ws://localhost:8080/ws")
 
         send = function(data) {
             $("#output").append((new Date()) + " ==> " + data + "\n")
+            c.send(data)
         }
         c.onmessage = function(msg){
             $("#output").append((new Date())+ " <== "+msg.data+"\n")
