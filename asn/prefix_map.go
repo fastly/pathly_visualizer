@@ -1,77 +1,87 @@
 package asn
 
-import "net/netip"
+import (
+	"log"
+	"net/netip"
+)
+import "github.com/jmeggitt/nradix"
 
 type PrefixMap[T any] struct {
-	// An ordered map like a BTreeMap could have been better, but I was unable to find a good generic implementation
-	inner map[netip.Prefix]T
-	ipv4  prefixBitRange
-	ipv6  prefixBitRange
+	ipv4 *nradix.Tree
+	ipv6 *nradix.Tree
 }
 
 func MakePrefixMap[T any]() PrefixMap[T] {
 	return PrefixMap[T]{
-		inner: make(map[netip.Prefix]T),
-		ipv4:  prefixBitRange{min: 32, max: 0},
-		ipv6:  prefixBitRange{min: 128, max: 0},
+		ipv4: nradix.NewTree(0),
+		ipv6: nradix.NewTree(0),
 	}
 }
 
-func (prefixMap *PrefixMap[T]) Length() int {
-	return len(prefixMap.inner)
+func (prefixMap *PrefixMap[T]) Clear() {
+	prefixMap.ipv4 = nradix.NewTree(0)
+	prefixMap.ipv6 = nradix.NewTree(0)
 }
 
-func (prefixMap *PrefixMap[T]) Clear() {
-	prefixMap.inner = make(map[netip.Prefix]T)
-	prefixMap.ipv4 = prefixBitRange{min: 32, max: 0}
-	prefixMap.ipv6 = prefixBitRange{min: 128, max: 0}
+func (prefixMap *PrefixMap[T]) forAddressFamily(prefix netip.Addr) *nradix.Tree {
+	if prefix.Is4() {
+		return prefixMap.ipv4
+	} else {
+		return prefixMap.ipv6
+	}
 }
 
 func (prefixMap *PrefixMap[T]) Set(prefix netip.Prefix, value T) {
-	prefixMap.inner[prefix.Masked()] = value
+	tree := prefixMap.forAddressFamily(prefix.Addr())
 
-	if prefix.Addr().Is4() {
-		prefixMap.ipv4.updateRange(prefix.Bits())
-	} else {
-		prefixMap.ipv6.updateRange(prefix.Bits())
+	if err := tree.SetCIDR(prefix.String(), value); err != nil && prefix.IsValid() {
+		// Perform safety check to verify that no errors are created
+		log.Panic("SetCIDR returned error on valid prefix (", prefix, "): ", err)
 	}
 }
 
 func (prefixMap *PrefixMap[T]) Get(prefix netip.Prefix) (value T, present bool) {
-	value, present = prefixMap.inner[prefix.Masked()]
+	tree := prefixMap.forAddressFamily(prefix.Addr())
+
+	if found, err := tree.FindCIDR(prefix.String()); err != nil && prefix.IsValid() {
+		// Perform safety check to verify that no errors are created
+		log.Panic("FindCIDR returned error on valid prefix (", prefix, "): ", err)
+	} else if found != nil {
+		value = found.(T)
+		present = true
+	}
+
 	return
 }
 
 func (prefixMap *PrefixMap[T]) GetAddr(addr netip.Addr) (value T, present bool) {
-	bitRange := prefixMap.ipv4
+	tree := prefixMap.forAddressFamily(addr)
 
-	if addr.Is6() {
-		bitRange = prefixMap.ipv6
-	}
-
-	for bits := bitRange.max; bits >= bitRange.min && !present; bits-- {
-		prefix := netip.PrefixFrom(addr, bits).Masked()
-		value, present = prefixMap.inner[prefix]
+	if found, err := tree.FindCIDR(addr.String()); err != nil && addr.IsValid() {
+		// Perform safety check to verify that no errors are created
+		log.Panic("FindCIDR returned error on valid address (", addr, "): ", err)
+	} else if found != nil {
+		value = found.(T)
+		present = true
 	}
 
 	return
 }
 
 func (prefixMap *PrefixMap[T]) Remove(prefix netip.Prefix) {
-	delete(prefixMap.inner, prefix.Masked())
-}
+	tree := prefixMap.forAddressFamily(prefix.Addr())
 
-type prefixBitRange struct {
-	min int
-	max int
-}
-
-func (bitRange *prefixBitRange) updateRange(value int) {
-	if value < bitRange.min {
-		bitRange.min = value
+	if err := tree.DeleteCIDR(prefix.String()); err != nil && prefix.IsValid() {
+		// Perform safety check to verify that no errors are created
+		log.Panic("DeleteCIDR returned error on valid prefix (", prefix, "): ", err)
 	}
+}
 
-	if value > bitRange.max {
-		bitRange.max = value
+func (prefixMap *PrefixMap[T]) RemoveRange(prefix netip.Prefix) {
+	tree := prefixMap.forAddressFamily(prefix.Addr())
+
+	if err := tree.DeleteWholeRangeCIDR(prefix.String()); err != nil && prefix.IsValid() {
+		// Perform safety check to verify that no errors are created
+		log.Panic("DeleteCIDR returned error on valid prefix (", prefix, "): ", err)
 	}
 }
