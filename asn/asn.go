@@ -57,10 +57,6 @@ func (ipToAsn *IpToAsn) Get(addr netip.Addr) (asn uint32, present bool) {
 	return ipToAsn.asnMap.GetAddr(addr)
 }
 
-func (ipToAsn *IpToAsn) Length() int {
-	return ipToAsn.asnMap.Length()
-}
-
 func (ipToAsn *IpToAsn) refreshFromUrl(url string) (err error) {
 	var response *http.Response
 	if response, err = http.Get(url); err != nil {
@@ -86,10 +82,44 @@ func (ipToAsn *IpToAsn) refreshFromUrl(url string) (err error) {
 			return err
 		}
 
-		ipToAsn.asnMap.Set(prefix, asn)
+		if shouldIncludeAsnPrefix(prefix, asn) {
+			// Remove any children from the range we are about to cover
+			ipToAsn.asnMap.RemoveRange(prefix)
+
+			// If we are still able to retrieve this prefix, we know it has already been covered by a higher prefix
+			if found, ok := ipToAsn.asnMap.Get(prefix); !ok || found != asn {
+				ipToAsn.asnMap.Set(prefix, asn)
+			}
+		}
 	}
 
 	return scanner.Err()
+}
+
+// shouldIncludeAsnPrefix checks that address meets the following conditions:
+//   - The prefix corresponds to a public global unicast address
+//   - The prefix is not too specific (greater than a /24 in IPv4 or a /48 in IPv6)
+//   - The ASN is in the public globally assigned range
+func shouldIncludeAsnPrefix(prefix netip.Prefix, asn uint32) bool {
+	return prefix.Addr().IsGlobalUnicast() &&
+		!prefix.Addr().IsPrivate() &&
+		!isPrefixTooSpecific(prefix) &&
+		!isPrivateAsn(asn)
+}
+
+func isPrefixTooSpecific(prefix netip.Prefix) bool {
+	if prefix.Addr().Is4() {
+		return prefix.Bits() > 24
+	} else if prefix.Addr().Is4In6() {
+		// IPv4-mapped IPv6 should not appear in this data, but check it regardless
+		return prefix.Bits() > 120
+	} else {
+		return prefix.Bits() > 48
+	}
+}
+
+func isPrivateAsn(asn uint32) bool {
+	return asn >= 64512 && asn <= 65534
 }
 
 // Parses a line to extract info about the range of addresses and the ASN it refers to.

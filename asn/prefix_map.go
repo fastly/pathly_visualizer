@@ -13,14 +13,14 @@ type PrefixMap[T any] struct {
 
 func MakePrefixMap[T any]() PrefixMap[T] {
 	return PrefixMap[T]{
-		ipv4: nradix.NewTree(0),
-		ipv6: nradix.NewTree(0),
+		ipv4: nradix.NewTree(256),
+		ipv6: nradix.NewTree(256),
 	}
 }
 
 func (prefixMap *PrefixMap[T]) Clear() {
-	prefixMap.ipv4 = nradix.NewTree(0)
-	prefixMap.ipv6 = nradix.NewTree(0)
+	prefixMap.ipv4 = nradix.NewTree(256)
+	prefixMap.ipv6 = nradix.NewTree(256)
 }
 
 func (prefixMap *PrefixMap[T]) forAddressFamily(prefix netip.Addr) *nradix.Tree {
@@ -71,7 +71,7 @@ func (prefixMap *PrefixMap[T]) GetAddr(addr netip.Addr) (value T, present bool) 
 func (prefixMap *PrefixMap[T]) Remove(prefix netip.Prefix) {
 	tree := prefixMap.forAddressFamily(prefix.Addr())
 
-	if err := tree.DeleteCIDR(prefix.String()); err != nil && prefix.IsValid() {
+	if err := tree.DeleteCIDR(prefix.String()); err != nil && err != nradix.ErrNotFound && prefix.IsValid() {
 		// Perform safety check to verify that no errors are created
 		log.Panic("DeleteCIDR returned error on valid prefix (", prefix, "): ", err)
 	}
@@ -80,7 +80,7 @@ func (prefixMap *PrefixMap[T]) Remove(prefix netip.Prefix) {
 func (prefixMap *PrefixMap[T]) RemoveRange(prefix netip.Prefix) {
 	tree := prefixMap.forAddressFamily(prefix.Addr())
 
-	if err := tree.DeleteWholeRangeCIDR(prefix.String()); err != nil && prefix.IsValid() {
+	if err := tree.DeleteWholeRangeCIDR(prefix.String()); err != nil && err != nradix.ErrNotFound && prefix.IsValid() {
 		// Perform safety check to verify that no errors are created
 		log.Panic("DeleteCIDR returned error on valid prefix (", prefix, "): ", err)
 	}
