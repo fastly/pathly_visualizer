@@ -2,4 +2,4 @@
 .env
 
 # Lockfile for go dependencies
-go.sum
+src/go.sum
