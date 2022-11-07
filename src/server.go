@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/common"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/rest_api"
 	"github.com/joho/godotenv"
 	"log"
 )
@@ -26,6 +27,8 @@ func main() {
 	initServices(state, services)
 	startServices(state, services)
 
+	// Should the rest api be treated like a regular service?
+	rest_api.StartRestApi(state)
 }
 
 func initServices(state *common.ApplicationState, services []common.Service) {
@@ -56,4 +59,3 @@ func startServices(state *common.ApplicationState, services []common.Service) {
 		}(service)
 	}
 }
-
