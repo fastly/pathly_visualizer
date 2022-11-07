@@ -1,45 +1,47 @@
 package traceroute_data
 
 import (
-	"encoding/json"
-	"io"
+	"github.com/DNS-OARC/ripeatlas"
+	"github.com/DNS-OARC/ripeatlas/measurement"
 	"log"
-	"net/http"
 )
 
-const RipeAtlasApi string = "https://atlas.ripe.net"
-const GetMeasurementsRoute string = "/api/v2/measurements/"
+func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]measurement.Result, error) {
 
-func GetTraceRouteData(measurementID, startTime, endTime string) ([]Traceroute, error) {
-
-	var formatKey = ""
-	if startTime == "" || endTime == "" {
-		formatKey = "/results/?format=json&key="
-	} else {
-		formatKey = "/results/?start=" + startTime + "&stop=" + endTime + "&format=json"
-	}
-	// Get the data from url
-	// format: https://atlas.ripe.net/api/v2/measurements/<Measurement ID>/results/?format=json
-	url := RipeAtlasApi + GetMeasurementsRoute + measurementID + formatKey
-
-	resp, err := http.Get(url)
+	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
+	channel, err := a.MeasurementResults(ripeatlas.Params{"pk": measurementID, "start": startTime, "stop": endTime})
 	if err != nil {
-		log.Printf("Could not open GET request for traceroute")
+		log.Printf("Cannot get measurment results from Ripe Atlas Streaming API: %v\n", err)
 		return nil, err
 	}
-
-	defer closeAndLogErrors("Error while closing HTTP response for Traceroute ingestion", resp.Body)
-
-	//Read in the JSON data
-	var traceroute []Traceroute
-	if err = json.NewDecoder(resp.Body).Decode(&traceroute); err != nil {
-		log.Printf("cannot decode JSON: %v\n", err)
+	var traceroutes []measurement.Result
+	for measurementTraceroute := range channel {
+		if measurementTraceroute.ParseError != nil {
+			log.Printf("Measurement could not be parsed: %v\n", measurementTraceroute.ParseError)
+		} else {
+			traceroutes = append(traceroutes, *measurementTraceroute)
+		}
 	}
-	return traceroute, nil
+
+	return traceroutes, nil
 }
 
-func closeAndLogErrors(source string, closer io.Closer) {
-	if err := closer.Close(); err != nil {
-		log.Println(source, err)
+func GetStreamingTraceRouteData(measurementID int) error {
+
+	// Read Atlas results using Streaming API
+	a := ripeatlas.Atlaser(ripeatlas.NewStream())
+	//TODO check for multiple measurement IDS in one stream
+	channel, err := a.MeasurementResults(ripeatlas.Params{"type": "traceroute", "msm": measurementID})
+	if err != nil {
+		log.Printf("Cannot get measurment results from Ripe Atlas Streaming API: %v\n", err)
+		return err
 	}
+
+	for measurement := range channel {
+		if measurement.ParseError != nil {
+			log.Printf("%+v", measurement.ParseError)
+		}
+		log.Printf("%+v", measurement.MsmId())
+	}
+	return nil
 }
