@@ -18,8 +18,10 @@ func init() {
 }
 
 func main() {
+	// Services should be listed here in order initialization and startup
 	services := []common.Service{
-		// Services should be listed here in order initialization and startup
+		common.IpToAsnService{},
+		// etc...
 	}
 
 	state := common.InitApplicationState()
