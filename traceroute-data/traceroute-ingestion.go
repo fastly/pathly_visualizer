@@ -26,22 +26,15 @@ func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]
 	return traceroutes, nil
 }
 
-func GetStreamingTraceRouteData(measurementID int) error {
+func GetStreamingTraceRouteData(measurementID int) (<-chan *measurement.Result, error) {
 
 	// Read Atlas results using Streaming API
 	a := ripeatlas.Atlaser(ripeatlas.NewStream())
-	//TODO check for multiple measurement IDS in one stream
 	channel, err := a.MeasurementResults(ripeatlas.Params{"type": "traceroute", "msm": measurementID})
 	if err != nil {
 		log.Printf("Cannot get measurment results from Ripe Atlas Streaming API: %v\n", err)
-		return err
+		return nil, err
 	}
 
-	for measurement := range channel {
-		if measurement.ParseError != nil {
-			log.Printf("%+v", measurement.ParseError)
-		}
-		log.Printf("%+v", measurement.MsmId())
-	}
-	return nil
+	return channel, nil
 }
