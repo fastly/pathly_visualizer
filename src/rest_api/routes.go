@@ -2,13 +2,13 @@ package rest_api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/jmeggitt/fastly_anycast_experiments.git/common"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/service"
 	"log"
 	"net/http"
 	"os"
 )
 
-func StartRestApi(state *common.ApplicationState) {
+func StartRestApi(state *service.ApplicationState) {
 	// Setup middleware
 	router := gin.Default()
 	router.Use(allowCORSMiddleware)
@@ -30,7 +30,7 @@ func StartRestApi(state *common.ApplicationState) {
 
 // This function currently holds routes form the REST API frontend experiments. After being cleaned up, this function
 // should not use inlined anonymous functions for routing.
-func setupRoutes(router *gin.Engine, state *common.ApplicationState) {
+func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 	router.LoadHTMLFiles("index.html")
 	router.GET("/", func(ctx *gin.Context) {
 		ctx.HTML(http.StatusOK, "index.html", nil)

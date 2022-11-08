@@ -1,4 +1,4 @@
-package common
+package service
 
 import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/asn"
