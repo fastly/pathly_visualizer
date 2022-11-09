@@ -3,30 +3,8 @@ package rest_api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/service"
-	"log"
 	"net/http"
-	"os"
 )
-
-func StartRestApi(state *service.ApplicationState) {
-	// Setup middleware
-	router := gin.Default()
-	router.Use(allowCORSMiddleware)
-
-	log.Println("Setting up REST API routes")
-	setupRoutes(router, state)
-
-	log.Println("Running REST API routes")
-
-	var err error
-	if os.Getenv("GIN_MODE") == "release" {
-		err = router.Run(":80")
-	} else {
-		err = router.Run(":8080")
-	}
-
-	log.Println("REST API exited prematurely:", err)
-}
 
 // This function currently holds routes form the REST API frontend experiments. After being cleaned up, this function
 // should not use inlined anonymous functions for routing.
