@@ -1,14 +1,13 @@
-package test_traceroute_data
+package ripe_atlas
 
 import (
-	tracerouteData "github.com/jmeggitt/fastly_anycast_experiments.git/traceroute-data"
 	"reflect"
 	"testing"
 )
 
 func TestGetTraceRouteData(t *testing.T) {
 	expectedLength := 34
-	actualTraceRoute, err := tracerouteData.GetStaticTraceRouteData("46320619", 1666897839, 1666897839)
+	actualTraceRoute, err := GetStaticTraceRouteData("46320619", 1666897839, 1666897839)
 
 	if err != nil {
 		t.Errorf("Failed to collect static Traceroute data: %+v\n", err)
@@ -41,7 +40,7 @@ func TestGetTraceRouteData(t *testing.T) {
 
 func TestGetTraceRouteDataKRootIPv4(t *testing.T) {
 	expectedLength := 7
-	actualTraceRoute, _ := tracerouteData.GetStaticTraceRouteData("5001", 1666915200, 1666915200)
+	actualTraceRoute, _ := GetStaticTraceRouteData("5001", 1666915200, 1666915200)
 	actualLength := len(actualTraceRoute)
 
 	if !reflect.DeepEqual(expectedLength, actualLength) {
@@ -59,7 +58,7 @@ func TestGetTraceRouteDataKRootIPv4(t *testing.T) {
 
 func TestGetTraceRouteDataKRootIPv6(t *testing.T) {
 	expectedLength := 2
-	actualTraceRoute, _ := tracerouteData.GetStaticTraceRouteData("6001", 1667001600, 1667001600)
+	actualTraceRoute, _ := GetStaticTraceRouteData("6001", 1667001600, 1667001600)
 	actualLength := len(actualTraceRoute)
 
 	if !reflect.DeepEqual(expectedLength, actualLength) {
@@ -77,7 +76,7 @@ func TestGetTraceRouteDataKRootIPv6(t *testing.T) {
 
 func TestGetTraceRouteDataBRootIPv4(t *testing.T) {
 	expectedVal := 3
-	actualTraceRoute, _ := tracerouteData.GetStaticTraceRouteData("5010", 1667001600, 1667001600)
+	actualTraceRoute, _ := GetStaticTraceRouteData("5010", 1667001600, 1667001600)
 	actualLength := len(actualTraceRoute)
 
 	if !reflect.DeepEqual(expectedVal, actualLength) {
@@ -95,7 +94,7 @@ func TestGetTraceRouteDataBRootIPv4(t *testing.T) {
 
 func TestGetTraceRouteDataBRootIPv6(t *testing.T) {
 	expectedLength := 4
-	actualTraceRoute, _ := tracerouteData.GetStaticTraceRouteData("6010", 1667001600, 1667001600)
+	actualTraceRoute, _ := GetStaticTraceRouteData("6010", 1667001600, 1667001600)
 	actualLength := len(actualTraceRoute)
 
 	if !reflect.DeepEqual(expectedLength, actualLength) {
@@ -112,8 +111,8 @@ func TestGetTraceRouteDataBRootIPv6(t *testing.T) {
 }
 
 func TestStreamTracerouteData(t *testing.T) {
-	actualMeasurementResult1, err1 := tracerouteData.GetStreamingTraceRouteData(6010)
-	actualMeasurementResult2, err2 := tracerouteData.GetStreamingTraceRouteData(5010)
+	actualMeasurementResult1, err1 := GetStreamingTraceRouteData(6010)
+	actualMeasurementResult2, err2 := GetStreamingTraceRouteData(5010)
 
 	if err1 != nil {
 		t.Errorf("Received an error from streaming data: %v\n", err1)
