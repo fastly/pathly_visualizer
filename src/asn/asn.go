@@ -57,10 +57,6 @@ func (ipToAsn *IpToAsn) Get(addr netip.Addr) (asn uint32, present bool) {
 	return ipToAsn.asnMap.GetAddr(addr)
 }
 
-func (ipToAsn *IpToAsn) Length() int {
-	return ipToAsn.asnMap.Length()
-}
-
 func (ipToAsn *IpToAsn) refreshFromUrl(url string) (err error) {
 	var response *http.Response
 	if response, err = http.Get(url); err != nil {
@@ -86,10 +82,72 @@ func (ipToAsn *IpToAsn) refreshFromUrl(url string) (err error) {
 			return err
 		}
 
-		ipToAsn.asnMap.Set(prefix, asn)
+		if shouldIncludeAsnPrefix(prefix, asn) {
+			// Remove any children from the range we are about to cover
+			ipToAsn.asnMap.RemoveRange(prefix)
+
+			// If we are still able to retrieve this prefix, we know it has already been covered by a higher prefix
+			if found, ok := ipToAsn.asnMap.Get(prefix); !ok || found != asn {
+				ipToAsn.asnMap.Set(prefix, asn)
+			}
+		}
 	}
 
 	return scanner.Err()
+}
+
+// shouldIncludeAsnPrefix checks that address meets the following conditions:
+//   - The prefix corresponds to a public global unicast address
+//   - The prefix is not too specific (greater than a /24 in IPv4 or a /48 in IPv6)
+//   - The ASN is in the public globally assigned range
+func shouldIncludeAsnPrefix(prefix netip.Prefix, asn uint32) bool {
+	return prefix.Addr().IsGlobalUnicast() &&
+		!prefix.Addr().Is4In6() &&
+		!prefix.Addr().IsPrivate() &&
+		!isPrefixTooSpecific(prefix) &&
+		isPublicAsn(asn)
+}
+
+func isPrefixTooSpecific(prefix netip.Prefix) bool {
+	if prefix.Addr().Is4() {
+		return prefix.Bits() > 24
+	} else {
+		return prefix.Bits() > 48
+	}
+}
+
+type rangeInclusive struct {
+	min, max uint32
+}
+
+// reservedAsnRanges holds inclusive ranges of ASN values which have been reserved for various uses. These do not
+// include unallocated ranges as they may be allocated in the future. These ranges are non-overlapping and are in
+// ascending order.
+var reservedAsnRanges = []rangeInclusive{
+	{min: 0, max: 0},                   // Reserved (RFC7607)
+	{min: 23456, max: 23456},           // Reserved for transition in ASN from 16-bit to 32-bit (RFC6793)
+	{min: 64512, max: 65534},           // Reserved for private use (RFC6996)
+	{min: 65535, max: 65535},           // Reserved (RFC7300)
+	{min: 64496, max: 64511},           // Reserved for use in documentation and sample code (RFC5398)
+	{min: 65536, max: 65551},           // Reserved for use in documentation and sample code (RFC5398)
+	{min: 65552, max: 131071},          // Reserved
+	{min: 4200000000, max: 4294967294}, // Reserved for private use (RFC6996)
+	{min: 4294967295, max: 4294967295}, // Reserved (RFC7300)
+}
+
+func isPublicAsn(asn uint32) bool {
+	for _, reservedRange := range reservedAsnRanges {
+		if asn < reservedRange.min {
+			// All the following ranges will be greater than the ASN, so we can skip them
+			break
+		}
+
+		if asn >= reservedRange.min && asn <= reservedRange.max {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Parses a line to extract info about the range of addresses and the ASN it refers to.
