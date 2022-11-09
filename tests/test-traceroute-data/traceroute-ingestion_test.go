@@ -1,7 +1,10 @@
 package test_traceroute_data
 
 import (
+	"github.com/DNS-OARC/ripeatlas"
+	"github.com/DNS-OARC/ripeatlas/measurement"
 	tracerouteData "github.com/jmeggitt/fastly_anycast_experiments.git/traceroute-data"
+	"log"
 	"reflect"
 	"testing"
 )
@@ -139,6 +142,50 @@ func TestStreamTracerouteData(t *testing.T) {
 			if msg2.Type() != "traceroute" {
 				t.Errorf("Streaming 6010 not traceroute measurement but got %v\n", msg2.Type())
 			}
+		}
+	}
+}
+
+func TestFileTracerouteData(t *testing.T) {
+	// Read Atlas results from a file
+	a := ripeatlas.Atlaser(ripeatlas.NewFile())
+	channel, err := a.MeasurementResults(ripeatlas.Params{"file": "basic_traceroute_testing.json"})
+	if err != nil {
+		log.Printf("Could not read from basic_traceroute_testing.json. Error: %+v", err)
+	}
+
+	var actualTraceRoute []measurement.Result
+	for measurementTraceroute := range channel {
+		if measurementTraceroute.ParseError != nil {
+			log.Printf("Measurement could not be parsed: %v\n", measurementTraceroute.ParseError)
+		} else {
+			actualTraceRoute = append(actualTraceRoute, *measurementTraceroute)
+		}
+	}
+
+	expectedLength := 34
+	actualLength := len(actualTraceRoute)
+
+	if !reflect.DeepEqual(expectedLength, actualLength) {
+		t.Errorf("Got %+v want %+v\n", actualLength, expectedLength)
+	}
+
+	expectedFirmwareCounts := make(map[int]int)
+	expectedFirmwareCounts[4790] = 1
+	expectedFirmwareCounts[5020] = 4
+	expectedFirmwareCounts[5040] = 10
+	expectedFirmwareCounts[5070] = 18
+	expectedFirmwareCounts[5080] = 1
+
+	actualFirmwareCounts := make(map[int]int)
+
+	for _, traceroute := range actualTraceRoute {
+		actualFirmwareCounts[traceroute.Fw()] = actualFirmwareCounts[traceroute.Fw()] + 1
+	}
+
+	for fw, count := range expectedFirmwareCounts {
+		if actualFirmwareCounts[fw] != count {
+			t.Errorf("Did not get correct count for firmware %v: Expected %v but got %v\n", fw, count, actualFirmwareCounts[fw])
 		}
 	}
 }
