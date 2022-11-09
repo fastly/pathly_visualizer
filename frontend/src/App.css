@@ -1,5 +1,32 @@
 .App {
   text-align: center;
+  background-color: #E6F8FC;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 10px;
+  width: 400px;
+  padding: 5px;
+  margin-left: 20%;
+  margin-top: 15%;
+}
+
+#submitForm {
+  background-color: #23E0A8;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 2px;
+}
+
+#srcProbe {
+  width: 350px;
+}
+
+#destIP {
+  width: 355px;
+}
+
+label{
+  display:block;
 }
 
 .App-logo {

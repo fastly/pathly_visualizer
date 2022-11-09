@@ -19,7 +19,7 @@ function App() {
     const xhr = new XMLHttpRequest()
     // I assume keeping localhost here is fine as the code will be running on GCP regardless
     // change to /api/post for testing w/o trcrt path specified yet
-    xhr.open("POST", "http://localhost:8080/trcrt", true)
+    xhr.open("POST", "http://localhost:8080/api/post", true)
     // I'm assuming json is the format we want to be sending requests w/
     xhr.setRequestHeader("Content-Type", "application/json")
     // what happens when response is received
@@ -29,10 +29,14 @@ function App() {
         // TODO Send response to function to parse and create graph
         // graphs will most likely be their own component, might need to pass parsed response as props into component
       }
-      else {
-        console.error(xhr.response)
-        alert("AN ERROR HAS OCCURRED: PLEASE TRY AGAIN")
-      }
+      // else if (xhr.status === 204) {
+      //   console.log("testing")
+      // }
+      // else {
+      //   console.error(xhr.readyState)
+      //   console.error(xhr.status)
+      //   alert("AN ERROR HAS OCCURRED: PLEASE TRY AGAIN")
+      // }
     }
 
     xhr.send(JSON.stringify(formObj))
@@ -41,11 +45,17 @@ function App() {
   return (
     <div className="App">
       {/* FORM FOR COLLECTING DATA FROM BACKEND STORAGE HERE */}
+      <h1>CREATE VISUALIZATION</h1>
       <form id="postForm" onSubmit={search}>
-        <input name="src" placeholder="Source Probe" required></input>
+      <label for="src">Source Probe</label>
+        <input id= "srcProbe" name="src" placeholder="e.g. 123456" required></input>
+        
+        <br></br>
         {/* Using list of measurements sds suggested to start from */}
-        <select name="dst" placeholder="Destination IP" required>
-          {/* Separated using optgroup --> note I have no way to test this rn and I've never used optgroup before */}
+        <label for="dst">Destination IP</label>
+        <select id="destIP" name="dst" placeholder="Destination IP" required>
+        {/* <option selected="true" style={{display: 'none'}}></option> */}
+        <option hidden> Select IP Address</option>
           <optgroup label="k-root">
             <option value="193.0.14.129">193.0.14.129</option>
             <option value="2001:7fd::1">2001:7fd::1</option>
@@ -59,8 +69,8 @@ function App() {
             <option value="2a04:4e42::1">2a04:4e42::1</option>
           </optgroup>
         </select>
-
-        <button id="submitForm" type="submit">Submit</button>
+        <br></br>
+        <button id="submitForm" type="submit">Visualize</button>
       </form>
     </div>
   );

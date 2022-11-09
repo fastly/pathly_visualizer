@@ -37,20 +37,20 @@ func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 	})
 
 	api := router.Group("/api")
+	{
+		// GET request, basic
+		api.GET("/get", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusOK, gin.H{"msg": "world"})
+		})
 
-	// GET request, basic
-	api.GET("/get", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{"msg": "world"})
-	})
-
-	// POST rq that returns the body of the request
-	api.POST("/post", func(ctx *gin.Context) {
-		buf := make([]byte, 1024)
-		num, _ := ctx.Request.Body.Read(buf)
-		reqBody := string(buf[0:num])
-		ctx.JSON(http.StatusOK, gin.H{"msg": reqBody})
-	})
-
+		// POST rq that returns the body of the request
+		api.POST("/post", func(ctx *gin.Context) {
+			buf := make([]byte, 1024)
+			num, _ := ctx.Request.Body.Read(buf)
+			reqBody := string(buf[0:num])
+			ctx.JSON(http.StatusOK, gin.H{"msg": reqBody})
+		})
+	}	
 	router.NoRoute(func(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{})
 	})
