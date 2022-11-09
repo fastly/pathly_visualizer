@@ -147,24 +147,13 @@ func TestStreamTracerouteData(t *testing.T) {
 }
 
 func TestFileTracerouteData(t *testing.T) {
-	// Read Atlas results from a file
-	a := ripeatlas.Atlaser(ripeatlas.NewFile())
-	channel, err := a.MeasurementResults(ripeatlas.Params{"file": "basic_traceroute_testing.json"})
+
+	actualTraceroute, err := getTracerouteMeasurement("basic_traceroute_testing.json")
 	if err != nil {
-		log.Printf("Could not read from basic_traceroute_testing.json. Error: %+v", err)
+		t.Errorf("Could not read from basic_traceroute_testing.json. Error: %+v", err)
 	}
-
-	var actualTraceRoute []measurement.Result
-	for measurementTraceroute := range channel {
-		if measurementTraceroute.ParseError != nil {
-			log.Printf("Measurement could not be parsed: %v\n", measurementTraceroute.ParseError)
-		} else {
-			actualTraceRoute = append(actualTraceRoute, *measurementTraceroute)
-		}
-	}
-
 	expectedLength := 34
-	actualLength := len(actualTraceRoute)
+	actualLength := len(actualTraceroute)
 
 	if !reflect.DeepEqual(expectedLength, actualLength) {
 		t.Errorf("Got %+v want %+v\n", actualLength, expectedLength)
@@ -179,7 +168,7 @@ func TestFileTracerouteData(t *testing.T) {
 
 	actualFirmwareCounts := make(map[int]int)
 
-	for _, traceroute := range actualTraceRoute {
+	for _, traceroute := range actualTraceroute {
 		actualFirmwareCounts[traceroute.Fw()] = actualFirmwareCounts[traceroute.Fw()] + 1
 	}
 
@@ -188,4 +177,24 @@ func TestFileTracerouteData(t *testing.T) {
 			t.Errorf("Did not get correct count for firmware %v: Expected %v but got %v\n", fw, count, actualFirmwareCounts[fw])
 		}
 	}
+}
+
+func getTracerouteMeasurement(fileName string) ([]measurement.Result, error) {
+	// Read Atlas results from a file
+	a := ripeatlas.Atlaser(ripeatlas.NewFile())
+	channel, err := a.MeasurementResults(ripeatlas.Params{"file": fileName})
+	if err != nil {
+		log.Printf("Could not read from %v. Error: %+v", fileName, err)
+		return nil, err
+	}
+
+	var traceroutes []measurement.Result
+	for measurementTraceroute := range channel {
+		if measurementTraceroute.ParseError != nil {
+			log.Printf("Measurement could not be parsed: %v\n", measurementTraceroute.ParseError)
+		} else {
+			traceroutes = append(traceroutes, *measurementTraceroute)
+		}
+	}
+	return traceroutes, nil
 }
