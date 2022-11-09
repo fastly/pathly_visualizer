@@ -8,7 +8,11 @@ import (
 
 func TestGetTraceRouteData(t *testing.T) {
 	expectedLength := 34
-	actualTraceRoute, _ := tracerouteData.GetStaticTraceRouteData("46320619", 1666897839, 1666897839)
+	actualTraceRoute, err := tracerouteData.GetStaticTraceRouteData("46320619", 1666897839, 1666897839)
+
+	if err != nil {
+		t.Errorf("Failed to collect static Traceroute data: %+v\n", err)
+	}
 	actualLength := len(actualTraceRoute)
 
 	if !reflect.DeepEqual(expectedLength, actualLength) {

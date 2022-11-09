@@ -6,10 +6,16 @@ import (
 	"log"
 )
 
-func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]measurement.Result, error) {
+const pkParam = "pk"
+const startParam = "start"
+const stopParam = "stop"
 
+const typeParam = "type"
+const msmParam = "msm"
+
+func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]measurement.Result, error) {
 	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
-	channel, err := a.MeasurementResults(ripeatlas.Params{"pk": measurementID, "start": startTime, "stop": endTime})
+	channel, err := a.MeasurementResults(ripeatlas.Params{pkParam: measurementID, startParam: startTime, stopParam: endTime})
 	if err != nil {
 		log.Printf("Cannot get measurment results from Ripe Atlas Streaming API: %v\n", err)
 		return nil, err
@@ -27,10 +33,9 @@ func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]
 }
 
 func GetStreamingTraceRouteData(measurementID int) (<-chan *measurement.Result, error) {
-
 	// Read Atlas results using Streaming API
 	a := ripeatlas.Atlaser(ripeatlas.NewStream())
-	channel, err := a.MeasurementResults(ripeatlas.Params{"type": "traceroute", "msm": measurementID})
+	channel, err := a.MeasurementResults(ripeatlas.Params{typeParam: "traceroute", msmParam: measurementID})
 	if err != nil {
 		log.Printf("Cannot get measurment results from Ripe Atlas Streaming API: %v\n", err)
 		return nil, err
