@@ -163,6 +163,39 @@ func TestPrefixMapLargestPrefix(t *testing.T) {
 	expectContains(t, &prefixMap, netip.MustParseAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "b")
 }
 
+func TestPrefixMap_RemoveRange_Single(t *testing.T) {
+	prefixMap := MakePrefixMap[string]()
+
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.4/24"), "a")
+	prefixMap.Set(netip.MustParsePrefix("5.6.7.8/32"), "b")
+	prefixMap.Set(netip.MustParsePrefix("1f32:1234::abcd/48"), "c")
+	prefixMap.Set(netip.MustParsePrefix("2f32:3434::1234/128"), "d")
+
+	prefixMap.RemoveRange(netip.MustParsePrefix("1.2.3.4/24"))
+	prefixMap.RemoveRange(netip.MustParsePrefix("5.6.7.8/32"))
+	prefixMap.RemoveRange(netip.MustParsePrefix("1f32:1234::abcd/48"))
+	prefixMap.RemoveRange(netip.MustParsePrefix("2f32:3434::1234/128"))
+
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("1.2.3.4"))
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("5.6.7.8"))
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("1f32:1234::abcd"))
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("2f32:3434::1234"))
+}
+
+func TestPrefixMap_RemoveRange_Children(t *testing.T) {
+	prefixMap := MakePrefixMap[string]()
+
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.4/32"), "a")
+	prefixMap.Set(netip.MustParsePrefix("1.2.3.5/32"), "b")
+	prefixMap.Set(netip.MustParsePrefix("1.2.4.0/24"), "c")
+
+	prefixMap.RemoveRange(netip.MustParsePrefix("1.2.3.0/24"))
+
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("1.2.3.4"))
+	expectDoesNotContain(t, &prefixMap, netip.MustParseAddr("1.2.3.5"))
+	expectContains(t, &prefixMap, netip.MustParseAddr("1.2.4.5"), "c")
+}
+
 func TestPrefixMapBitLenIPv4(t *testing.T) {
 	prefixMap := MakePrefixMap[string]()
 
@@ -202,9 +235,9 @@ func TestPrefixMapBitLenIPv6(t *testing.T) {
 
 		var hi, lo uint64 = 0, 0
 		if bitLen <= 64 {
-			hi = uint64(1) << (64 - bitLen)
+			hi = uint64(101) << (64 - bitLen)
 		} else {
-			lo = uint64(1) << (128 - bitLen)
+			lo = uint64(101) << (128 - bitLen)
 		}
 
 		binary.BigEndian.PutUint64(addrBuffer[0:8], hi)
@@ -243,10 +276,6 @@ func TestIpToAsn(t *testing.T) {
 		t.Fatal("Failed to create IpToAsn:", err.Error())
 	}
 
-	if asnMap.Length() == 0 {
-		t.Fatal("AsnMap does not contain any entries")
-	}
-
 	const FastlyAsn = 54113
 
 	knownFastlyIPs := []string{
@@ -280,10 +309,6 @@ func TestIpToAsnWithRootDns(t *testing.T) {
 	asnMap, err := CreateIpToAsn()
 	if err != nil {
 		t.Fatal("Failed to create IpToAsn:", err.Error())
-	}
-
-	if asnMap.Length() == 0 {
-		t.Fatal("AsnMap does not contain any entries")
 	}
 
 	type Pair struct {

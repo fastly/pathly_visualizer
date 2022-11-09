@@ -6,6 +6,9 @@ require (
 	github.com/DNS-OARC/ripeatlas v0.0.0-20221107153620-ac4f03274eaf
 	github.com/joho/godotenv v1.4.0
 )
+require github.com/joho/godotenv v1.4.0
+
+require github.com/jmeggitt/nradix v0.0.0-20221104060745-76d400a5df10 // indirect
 
 require (
 	github.com/gorilla/websocket v1.5.0 // indirect
