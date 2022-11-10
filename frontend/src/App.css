@@ -1,3 +1,4 @@
+/* MAIN FORM */
 .App {
   text-align: center;
   background-color: #E6F8FC;
@@ -27,6 +28,12 @@
 
 label{
   display:block;
+}
+
+/* GRAPH */
+
+#graph{
+  background-color: #E8EEF1;
 }
 
 .App-logo {
