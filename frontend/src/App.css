@@ -7,23 +7,31 @@
   border-radius: 10px;
   width: 400px;
   padding: 5px;
-  margin-left: 20%;
-  margin-top: 15%;
+  position: absolute;
+  left: 10%;
+  top: 20%;
 }
 
 #submitForm {
   background-color: #23E0A8;
   border: solid black;
   border-width: 1px;
-  border-radius: 2px;
+  border-radius: 6px;
+  font-size: 20px;
+  margin: 5%;
+  padding: 6px;
 }
 
 #srcProbe {
   width: 350px;
+  font-size: 15px;
+  margin: 2%;
 }
 
 #destIP {
   width: 355px;
+  font-size: 15px;
+  margin: 2%;
 }
 
 label{
@@ -32,8 +40,10 @@ label{
 
 /* GRAPH */
 
-#graph{
-  background-color: #E8EEF1;
+#graphArea{
+  position: absolute;
+  right: 10%;
+  top: 20%;
 }
 
 .App-logo {

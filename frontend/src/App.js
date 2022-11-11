@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import './App.css';
-import Graph from './components/graph';
+import Graph from './components/Graph';
 
 function App() {
+
+  // list of graphs being rendered --> start with state []
+  const [graphList, setGraphList] = useState([])
 
   // Search function --> connect to rest API
   // Once RIS data collection is implemented, this will include that as well
@@ -18,16 +22,14 @@ function App() {
     // create new http rq --> note, I've used XMLHttpRequest before but if there's a preferred method of sending requests use that instead
     const xhr = new XMLHttpRequest()
     // I assume keeping localhost here is fine as the code will be running on GCP regardless
-    // change to /api/post for testing w/o /trcrt path specified yet
-    xhr.open("POST", "http://localhost:8080/api/post", true)
-    // I'm assuming json is the format we want to be sending requests w/
+    xhr.open("POST", "http://localhost:8080/api/traceroute/clean", true)
     xhr.setRequestHeader("Content-Type", "application/json")
     // what happens when response is received
     xhr.onreadystatechange = () => {
       if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
         console.log(xhr.response)
-        //append graph w/ response passed as react props
-        document.getElementById("graphArea").appendChild(<Graph response={xhr.response}></Graph>)
+        //concat graph onto current graph list, gets rerendered w/ new graph list
+        setGraphList(graphList.concat(<Graph response={xhr.response}></Graph>))
       }
     }
 
@@ -67,8 +69,9 @@ function App() {
         </form>
       </div>
       {/* Left empty, graphs rendered on response load */}
-      <div id="graphArea">
-
+      <button onClick={addGraph}>Add</button>
+      <div id="graphArea" style={{height: 600, width: 600}}>
+        {graphList}
       </div>
     </>
   );
