@@ -1,4 +1,3 @@
-import GraphNode from "./GraphNode"
 import React, { useCallback } from 'react';
 import ReactFlow, {
     addEdge,
@@ -85,22 +84,40 @@ function Graph(props) {
         console.log(node.data)
         // TODO create popup
     }
+
+    const getRaw = () => {
+        const xhr = new XMLHttpRequest
+        xhr.open("POST", "http://localhost:8080/api/traceroute/download", true)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        // what happens when response is received
+        xhr.onreadystatechange = () => {
+            if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                console.log(xhr.response)
+                // TODO download attachment
+            }
+        }
+
+        xhr.send(JSON.stringify(props.form))
+    }
     
     return (
-        <ReactFlow
-            nodes={nodes}
-            edges={edgesWithUpdatedTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            fitView
-            attributionPosition="top-right"
-        >
-            <Controls/>
-            <Background color="#a6b0b4" gap={16} style={{backgroundColor: "#E8EEF1"}}/>
-        </ReactFlow>
-        
+        <div style={{height: 600, width: 600, marginBottom: 100}}>
+            <h2>Insert Graph Title Here</h2>
+            <ReactFlow
+                nodes={nodes}
+                edges={edgesWithUpdatedTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeClick={onNodeClick}
+                fitView
+                attributionPosition="top-right"
+            >
+                <Controls/>
+                <Background color="#a6b0b4" gap={16} style={{backgroundColor: "#E8EEF1"}}/>
+            </ReactFlow>
+            <button onClick={getRaw}>Raw Data</button>
+        </div>
     )
 }
 

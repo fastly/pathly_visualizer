@@ -29,7 +29,7 @@ function App() {
       if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
         console.log(xhr.response)
         //concat graph onto current graph list, gets rerendered w/ new graph list
-        setGraphList(graphList.concat(<Graph response={xhr.response}></Graph>))
+        setGraphList(graphList.concat(<Graph response={xhr.response} form={formObj}></Graph>))
       }
     }
 
@@ -44,7 +44,6 @@ function App() {
         <form id="postForm" onSubmit={search}>
         <label for="src">Source Probe</label>
           <input id= "srcProbe" name="src" placeholder="e.g. 123456" required></input>
-          
           <br></br>
           {/* Using list of measurements sds suggested to start from */}
           <label for="dst">Destination IP</label>
@@ -69,8 +68,7 @@ function App() {
         </form>
       </div>
       {/* Left empty, graphs rendered on response load */}
-      <button onClick={addGraph}>Add</button>
-      <div id="graphArea" style={{height: 600, width: 600}}>
+      <div id="graphArea">
         {graphList}
       </div>
     </>
