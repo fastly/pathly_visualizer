@@ -2,6 +2,9 @@ import { useState } from 'react';
 import './App.css';
 import Graph from './components/Graph';
 
+//test data for graph population
+import {tData} from './components/testTrcrt'
+
 function App() {
 
   // list of graphs being rendered --> start with state []
@@ -43,11 +46,11 @@ function App() {
         <h1>CREATE VISUALIZATION</h1>
         <form id="postForm" onSubmit={search}>
         <label for="src">Source Probe</label>
-          <input id= "srcProbe" name="src" placeholder="e.g. 123456" required></input>
+          <input id= "srcProbe" name="probeId" placeholder="e.g. 123456" required></input>
           <br></br>
           {/* Using list of measurements sds suggested to start from */}
           <label for="dst">Destination IP</label>
-          <select id="destIP" name="dst" placeholder="Destination IP" required>
+          <select id="destIP" name="destinationIp" placeholder="Destination IP" required>
           {/* <option selected="true" style={{display: 'none'}}></option> */}
           <option hidden> Select IP Address</option>
             <optgroup label="k-root">
@@ -69,7 +72,8 @@ function App() {
       </div>
       {/* Left empty, graphs rendered on response load */}
       <div id="graphArea">
-        {graphList}
+        {/* {graphList} */}
+        <Graph response={tData}></Graph>
       </div>
     </>
   );
