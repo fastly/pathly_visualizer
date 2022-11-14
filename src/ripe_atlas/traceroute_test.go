@@ -1,4 +1,4 @@
-package test_traceroute_data
+package ripe_atlas
 
 import (
 	"github.com/DNS-OARC/ripeatlas"
