@@ -1,20 +1,19 @@
-import React, { useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import ReactFlow, {
     addEdge,
-    // Can create minimap of graph if needed, not included right now
     MiniMap,
     Controls,
     Background,
     useNodesState,
     useEdgesState,
+    useReactFlow,
+    ReactFlowProvider,
   } from 'reactflow';
 import dagre from 'dagre'
 //below nodes and edges used for testing purposes
 import { nodes as initialNodes, edges as initialEdges } from './testElements';
 
 import 'reactflow/dist/style.css';
-import { useEffect } from 'react';
-import { useRef } from 'react';
 
 //using dagre library to auto format graph --> no need to position anything
 const dagreGraph = new dagre.graphlib.Graph();
@@ -24,7 +23,11 @@ dagreGraph.setDefaultEdgeLabel(() => ({}));
 const nodeWidth = 172;
 const nodeHeight = 36;
 
+//default position for all nodes --> changed for nodes later in getLayout
 const position = {x: 0, y: 0}
+
+//default flowkey --> used for storing flow data locally later
+const flowKey = 'example-flow';
 
 function Graph(props) {
         
@@ -32,7 +35,7 @@ function Graph(props) {
     let responseNodes = []
     let responseEdges = []
 
-    //TODO init nodes and edges from passed in props
+    //init nodes and edges from passed in props
     for(let i = 0; i < props.response.nodes.length; i++) {
         if(props.response.nodes[i].ip === props.response.probeIp) {
             responseNodes.push(
@@ -64,7 +67,6 @@ function Graph(props) {
                     position,
                 }
             )
-            console.log("setting pos here")
         }
     }
 
@@ -119,9 +121,8 @@ function Graph(props) {
     // need these for graph props later
     const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
-    const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
-
-    console.log(nodes)
+    const [rfInstance, setRfInstance] = useState(null);
+    const { setViewport } = useReactFlow();
 
     // used for different edge types, taken from documentation
     // we are using a bit of a shortcut here to adjust the edge type
@@ -140,27 +141,55 @@ function Graph(props) {
         console.log(node.data)
         // TODO create popup
     }
+    
+    const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
+    //saves current graph state to be restored later
+    const onSave = useCallback(() => {
+        if (rfInstance) {
+          const flow = rfInstance.toObject();
+          // save flow data in local storage to be used later
+          localStorage.setItem(flowKey, JSON.stringify(flow));
+        }
+      }, [rfInstance]);
+    
+    //restores saved graph state 
+    const onRestore = useCallback(() => {
+    const restoreFlow = async () => {
+        //parses flow data from local storage
+        const flow = JSON.parse(localStorage.getItem(flowKey));
+
+        //sets nodes, edges, and viewport using saved flow data
+        if (flow) {
+            const { x = 0, y = 0, zoom = 1 } = flow.viewport;
+            setNodes(flow.nodes || []);
+            setEdges(flow.edges || []);
+            setViewport({ x, y, zoom });
+        }
+    };
+
+    restoreFlow();
+    }, [setNodes, setViewport]);
+
+    //get raw traceroute data from button onclick
     const getRaw = () => {
-        // const xhr = new XMLHttpRequest
-        // xhr.open("POST", "http://localhost:8080/api/traceroute/download", true)
-        // xhr.setRequestHeader("Content-Type", "application/json")
-        // // what happens when response is received
-        // xhr.onreadystatechange = () => {
-        //     if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-        //         console.log(xhr.response)
-        //         // TODO download attachment
-        //     }
-        // }
+        const xhr = new XMLHttpRequest
+        xhr.open("POST", "http://localhost:8080/api/traceroute/download", true)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        // what happens when response is received
+        xhr.onreadystatechange = () => {
+            if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                console.log(xhr.response)
+                // TODO download attachment
+            }
+        }
 
-        // xhr.send(JSON.stringify(props.form))
-        console.log(nodes)
-        console.log(edges)
+        xhr.send(JSON.stringify(props.form))
     }
 
     return (
         <div style={{height: 600, width: 600, marginBottom: 100}}>
-            <h2>Insert Graph Title Here</h2>
+            <h2>{props.response.probeIp} to Destination</h2>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -168,6 +197,7 @@ function Graph(props) {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 onNodeClick={onNodeClick}
+                onInit={setRfInstance}
                 fitView
                 attributionPosition="top-right"
             >
@@ -175,9 +205,22 @@ function Graph(props) {
                 <MiniMap nodeStrokeWidth={3} zoomable pannable />
                 <Background color="#a6b0b4" gap={16} style={{backgroundColor: "#E8EEF1"}}/>
             </ReactFlow>
-            <button onClick={getRaw}>Raw Data</button>
+            <div className="controls">
+                <button onClick={getRaw}>Raw Data</button>
+                <button onClick={onSave}>Save</button>
+                <button onClick={onRestore}>Restore</button>
+            </div>
         </div>
     )
 }
 
-export default Graph
+// need this to utilize useReactFlow hook 
+function GraphWithProvider(props) {
+    return(
+        <ReactFlowProvider>
+            <Graph {...props}/>
+        </ReactFlowProvider>
+    )
+}
+
+export default GraphWithProvider
