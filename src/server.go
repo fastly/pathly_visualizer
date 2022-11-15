@@ -22,6 +22,7 @@ func main() {
 	// Services should be listed here in order initialization and startup
 	services := []service.Service{
 		service.IpToAsnService{},
+		service.TracerouteDataService{},
 		rest_api.NewRestApiService(),
 		// etc...
 	}
