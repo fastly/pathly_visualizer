@@ -3,6 +3,18 @@ This file documents the REST API routes supported by our application, what they 
 
 All responses and POST requests must be encoded as JSON.
 
+### Get Destinations
+`GET /api/destinations`
+
+```js
+const Response = [
+    {
+        "ipv4": string,
+        "ipv6": string,
+    },
+    // etc.
+]
+
 ### Get probes
 `GET /api/probes`
 
