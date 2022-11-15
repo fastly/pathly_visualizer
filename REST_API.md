@@ -14,6 +14,7 @@ const Response = [
     },
     // etc.
 ]
+```
 
 ### Get probes
 `GET /api/probes`
