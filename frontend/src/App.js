@@ -69,7 +69,8 @@ function App() {
       </div>
       {/* Left empty, graphs rendered on response load */}
       <div id="graphArea">
-        {graphList}
+        {/* {graphList} */}
+        <Graph></Graph>
       </div>
     </>
   );
