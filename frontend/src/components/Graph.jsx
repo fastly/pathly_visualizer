@@ -38,56 +38,134 @@ function Graph(props) {
     //init nodes and edges from passed in props
     for(let i = 0; i < props.response.nodes.length; i++) {
         let probeIpSplit = props.response.probeIp.split(" / ")
-        if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
-            responseNodes.push(
-                {
-                    id: props.response.nodes[i].ip,
-                    type: 'input',
-                    data: {
-                        label: props.response.nodes[i].ip,
-                        asn: props.response.nodes[i].asn,
-                        avgRtt: props.response.nodes[i].averageRtt,
-                        lastUsed: props.response.nodes[i].lastUsed,
-                        avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                    },
-                    className: 'circle',
-                    style: {
-                        background: '#E98F91',
-                    },
-                    position,
-                }
-            )
+        // clean traceroute data nodes
+        if(props.clean){
+            if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
+                responseNodes.push(
+                    {
+                        id: props.response.nodes[i].ip,
+                        type: 'input',
+                        data: {
+                            label: props.response.nodes[i].ip,
+                            asn: props.response.nodes[i].asn,
+                            avgRtt: props.response.nodes[i].averageRtt,
+                            lastUsed: props.response.nodes[i].lastUsed,
+                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                        },
+                        className: 'circle',
+                        style: {
+                            background: '#E98F91',
+                        },
+                        position,
+                    }
+                )
+            }
+            else{
+                responseNodes.push(
+                    {
+                        id: props.response.nodes[i].ip,
+                        data: {
+                            label: props.response.nodes[i].ip,
+                            asn: props.response.nodes[i].asn,
+                            avgRtt: props.response.nodes[i].averageRtt,
+                            lastUsed: props.response.nodes[i].lastUsed,
+                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                        },
+                        className: 'circle',
+                        style: {
+                            background: '#5DCFE7',
+                        },
+                        position,
+                    }
+                )
+            }
         }
+        // full traceroute data nodes
         else{
-            responseNodes.push(
-                {
-                    id: props.response.nodes[i].ip,
-                    data: {
-                        label: props.response.nodes[i].ip,
-                        asn: props.response.nodes[i].asn,
-                        avgRtt: props.response.nodes[i].averageRtt,
-                        lastUsed: props.response.nodes[i].lastUsed,
-                        avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                    },
-                    className: 'circle',
-                    style: {
-                        background: '#5DCFE7',
-                    },
-                    position,
+            if(props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1] && props.response.nodes[i].id.timeoutsSinceKnown === 0) {
+                responseNodes.push(
+                    {
+                        id: props.response.nodes[i].id.ip,
+                        type: 'input',
+                        data: {
+                            label: props.response.nodes[i].id.ip,
+                            asn: props.response.nodes[i].asn,
+                            avgRtt: props.response.nodes[i].averageRtt,
+                            lastUsed: props.response.nodes[i].lastUsed,
+                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                        },
+                        className: 'circle',
+                        style: {
+                            background: '#E98F91',
+                        },
+                        position,
+                    }
+                )
+            }
+            else{
+                // need to check if there are any timeouts in order to set proper id
+                let nodeId = props.response.nodes[i].id.ip
+                let nodeLabel = nodeId
+                if(props.response.nodes[i].id.timeoutsSinceKnown > 0){
+                    // concat number of timeouts since known onto id
+                    nodeId = nodeId + "-" + props.response.nodes[i].id.timeoutsSinceKnown
+                    nodeLabel = "*"
                 }
-            )
+                responseNodes.push(
+                    {
+                        id: nodeId,
+                        data: {
+                            label: nodeLabel,
+                            asn: props.response.nodes[i].asn,
+                            avgRtt: props.response.nodes[i].averageRtt,
+                            lastUsed: props.response.nodes[i].lastUsed,
+                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                        },
+                        className: 'circle',
+                        style: {
+                            background: '#5DCFE7',
+                        },
+                        position,
+                    }
+                )
+            }
         }
+        
     }
 
+    //populate edges using response data
     for(let i = 0; i < props.response.edges.length; i++) {
-        responseEdges.push(
-            {
-                id: props.response.edges[i].start + "-" + props.response.edges[i].end,
-                source: props.response.edges[i].start,
-                target: props.response.edges[i].end,
-                // Add more down here about line weight, etc.
+        // clean traceroute data edges
+        if(props.clean){
+            responseEdges.push(
+                {
+                    id: props.response.edges[i].start + "-" + props.response.edges[i].end,
+                    source: props.response.edges[i].start,
+                    target: props.response.edges[i].end,
+                    // Add more down here about line weight, etc.
+                }
+            )
+        }
+        // full traceroute data edges
+        else{
+            // need to change id based on how many timeouts since known
+            let edgeSource = props.response.edges[i].start.ip
+            let edgeTarget = props.response.edges[i].end.ip
+            if(props.response.edges[i].start.timeoutsSinceKnown > 0) {
+                edgeSource = edgeSource + "-" + props.response.edges[i].start.timeoutsSinceKnown
             }
-        )
+            if(props.response.edges[i].target.timeoutsSinceKnown > 0){
+                edgeTarget = edgeTarget + "-" + props.response.edges[i].target.timeoutsSinceKnown
+            }
+            responseEdges.push(
+                {
+                    id: edgeSource + "-" + edgeTarget,
+                    source: edgeSource,
+                    target: edgeTarget,
+                    // Add more down here about line weight, etc.
+                }
+            )
+        }
     }
     
 

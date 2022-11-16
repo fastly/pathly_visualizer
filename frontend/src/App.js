@@ -50,7 +50,7 @@ function App() {
       if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
         console.log(xhr.response)
         //concat graph onto current graph list, gets rerendered w/ new graph list
-        setGraphList(graphList.concat(<Graph response={xhr.response} form={formObj}></Graph>))
+        setGraphList(graphList.concat(<Graph response={xhr.response} form={formObj} clean={document.getElementById("fullOrClean").checked}></Graph>))
       }
     }
 
