@@ -225,7 +225,7 @@ function Graph(props) {
                 <button onClick={onSave}>Save</button>
                 <button onClick={onRestore}>Restore</button>
             </div>
-        </div>
+            </div>
     )
 }
 
