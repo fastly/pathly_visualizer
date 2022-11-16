@@ -3,11 +3,17 @@ package ripe_atlas
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"github.com/DNS-OARC/ripeatlas"
 	"github.com/DNS-OARC/ripeatlas/measurement"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
+	"time"
 )
 
 const pkParam = "pk"
@@ -69,11 +75,84 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 
 			channel <- &found
 		}
-		
+
 		if err := scanner.Err(); err != nil {
 			log.Println("Got error while reading traceroute data from file:", err)
 		}
+
+		close(channel)
 	}()
 
 	return channel, nil
+}
+
+const DefaultCacheDuration = 12 * time.Hour
+
+func getCacheDuration() time.Duration {
+	value, ok := os.LookupEnv("CACHE-DURATION")
+
+	if !ok {
+		return DefaultCacheDuration
+	}
+
+	seconds, err := strconv.ParseUint(value, 0, 64)
+	if err != nil {
+		log.Printf("Failed to read CACHE-DURATION value of %q: %v\n", value, err)
+		return DefaultCacheDuration
+	}
+
+	return time.Duration(seconds) * time.Second
+}
+
+const measurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
+
+func updateCacheFile(measurementID int, cacheFile string) error {
+	file, err := os.Create(cacheFile)
+	if err != nil {
+		return err
+	}
+
+	writer := bufio.NewWriter(file)
+	defer util.CloseAndLogErrors("Failed to close cache file writer", file)
+
+	url := fmt.Sprintf("%s/%d/results?format=json", measurementsUrl, measurementID)
+	res, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+
+	defer util.CloseAndLogErrors("Failed to close measurement request", res.Body)
+	if _, err := io.Copy(util.NewNdjsonConverter(writer), res.Body); err != nil {
+		return err
+	}
+
+	return writer.Flush()
+}
+
+func CachedGetTraceRouteData(measurementID int) (channel <-chan *measurement.Result, err error) {
+	var cachePath string
+	if cachePath, err = util.GetCacheDir(); err != nil {
+		return
+	}
+
+	cacheFile := filepath.Join(cachePath, fmt.Sprintf("%d.ndjson", measurementID))
+	var stat os.FileInfo
+	stat, err = os.Stat(cacheFile)
+
+	if err != nil && !os.IsNotExist(err) {
+		return
+	}
+
+	cacheDuration := getCacheDuration()
+	log.Println("Using cache duration of", cacheDuration)
+
+	if err != nil || stat.ModTime().Add(cacheDuration).Before(time.Now()) {
+		log.Println("Refreshing cache entry for measurement", measurementID)
+
+		if err = updateCacheFile(measurementID, cacheFile); err != nil {
+			return
+		}
+	}
+
+	return GetTraceRouteDataFromFile(cacheFile)
 }
