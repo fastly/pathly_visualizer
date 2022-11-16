@@ -37,7 +37,8 @@ function Graph(props) {
 
     //init nodes and edges from passed in props
     for(let i = 0; i < props.response.nodes.length; i++) {
-        if(props.response.nodes[i].ip === props.response.probeIp) {
+        let probeIpSplit = props.response.probeIp.split(" / ")
+        if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
             responseNodes.push(
                 {
                     id: props.response.nodes[i].ip,
@@ -48,6 +49,10 @@ function Graph(props) {
                         avgRtt: props.response.nodes[i].averageRtt,
                         lastUsed: props.response.nodes[i].lastUsed,
                         avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                    },
+                    className: 'circle',
+                    style: {
+                        background: '#E98F91',
                     },
                     position,
                 }
@@ -63,6 +68,10 @@ function Graph(props) {
                         avgRtt: props.response.nodes[i].averageRtt,
                         lastUsed: props.response.nodes[i].lastUsed,
                         avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                    },
+                    className: 'circle',
+                    style: {
+                        background: '#5DCFE7',
                     },
                     position,
                 }
@@ -202,7 +211,13 @@ function Graph(props) {
                 attributionPosition="top-right"
             >
                 <Controls/>
-                <MiniMap nodeStrokeWidth={3} zoomable pannable />
+                <MiniMap 
+                    nodeColor={(n) => {
+                        if(n.type === "input") return "#E98F91"
+                        else if(n.type === "output") return "#B1E6D6"
+                        else return "#5DCFE7"
+                    }}
+                    nodeStrokeWidth={3} zoomable pannable />
                 <Background color="#a6b0b4" gap={16} style={{backgroundColor: "#E8EEF1"}}/>
             </ReactFlow>
             <div className="controls">

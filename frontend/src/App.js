@@ -52,6 +52,8 @@ function App() {
     //two requests for ipv4 and 6 addresses
     xhr.send(JSON.stringify(ipv4FormObj))
     xhr.send(JSON.stringify(ipv6FormObj))
+
+    // TODO --> once receiving responses, concat all responses together into one large response to be able to represent ipv4 and 6 on same graph
   }
 
   return (
