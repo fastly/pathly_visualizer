@@ -38,7 +38,12 @@ function App() {
     // create new http rq --> note, I've used XMLHttpRequest before but if there's a preferred method of sending requests use that instead
     const xhr = new XMLHttpRequest()
     // I assume keeping localhost here is fine as the code will be running on GCP regardless
-    xhr.open("POST", "http://localhost:8080/api/traceroute/clean", true)
+    if(document.getElementById("fullOrClean").checked){
+      xhr.open("POST", "http://localhost:8080/api/traceroute/clean", true)
+    }
+    else{
+      xhr.open("POST", "http://localhost:8080/api/traceroute/full", true)
+    }
     xhr.setRequestHeader("Content-Type", "application/json")
     // what happens when response is received
     xhr.onreadystatechange = () => {
@@ -79,6 +84,15 @@ function App() {
               <option value="151.101.0.1 / 2a04:4e42::1">151.101.0.1 / 2a04:4e42::1</option>
             </optgroup>
           </select>
+          <br></br>
+          <div className="switchBox">
+            <p>Full </p>
+            <label className="switch">
+              <input type="checkbox" name="fullOrClean" id="fullOrClean"/>
+              <span className="slider round"></span>
+            </label>
+            <p> Clean</p>
+          </div>
           <br></br>
           <button id="submitForm" type="submit">Visualize</button>
         </form>
