@@ -4,6 +4,7 @@ import (
 	"github.com/DNS-OARC/ripeatlas/measurement"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/ripe_atlas"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"log"
 	"time"
 )
@@ -19,59 +20,42 @@ func (TracerouteDataService) Init(state *ApplicationState) (err error) {
 	return
 }
 
-func (TracerouteDataService) Run(state *ApplicationState) (err error) {
-	var resultChannel <-chan *measurement.Result
-	if resultChannel, err = ripe_atlas.GetStreamingTraceRouteData(46320619); err != nil {
-		return
-	}
-
-	var received uint64 = 0
-	var receivedNil uint64 = 0
-
-	var waitTime time.Duration = 0
-	var pushTime time.Duration = 0
-
-	const TimeoutDuration = 1 * time.Second
-
-	startTime := time.Now()
-
-	lastLog := time.Now()
+func (TracerouteDataService) handleIncomingMessages(state *ApplicationState, channel <-chan *measurement.Result) {
+	logProgress := util.IsEnvFlagSet("LOG_TRACEROUTE_PROGRESS")
+	progressCounter := util.MakeProgressCounter(3 * time.Second)
 
 loop:
 	for {
-		if time.Since(lastLog) > time.Second {
-			lastLog = time.Now()
-			log.Println("[Progress] Received", received, "traceroute messages with", receivedNil, "messages nil")
+		if logProgress {
+			progressCounter.Periodic(func(count uint64) {
+				log.Println("[Traceroute Progress] Parsed a total of", count, "traceroute messages")
+			})
 		}
 
-		waitStartTime := time.Now()
 		select {
-		case msg := <-resultChannel:
-			waitTime += time.Since(waitStartTime)
-			received += 1
-			if msg == nil {
-				receivedNil += 1
-				break
-			} else if received == 1 {
-				log.Println("Received first message after", time.Since(startTime))
-			}
-			state.tracerouteDataLock.Lock()
-			waitStartTime = time.Now()
-			state.TracerouteData.AppendMeasurement(msg)
-			pushTime += time.Since(waitStartTime)
-			state.tracerouteDataLock.Unlock()
-		case <-time.After(TimeoutDuration):
-			if received > 10000 {
+		case msg, ok := <-channel:
+			if !ok {
 				break loop
 			}
+
+			progressCounter.Increment()
+			state.tracerouteDataLock.Lock()
+			state.TracerouteData.AppendMeasurement(msg)
+			state.tracerouteDataLock.Unlock()
+		case <-time.After(3 * time.Second):
+			// Continue loop to allow progress counter to run
 		}
 	}
 
-	log.Println("Received a total of", received, "messaged and finished after", time.Since(startTime)-TimeoutDuration)
-	log.Println("\tTotal nil messages:", receivedNil)
-	log.Println("\tTime spent waiting on channel:", waitTime)
-	log.Println("\tTime spent pushing to data:", pushTime)
+	log.Println("[Traceroute Progress] Exited after parsing a total of", progressCounter.Count(), "traceroute messages")
+}
 
-	log.Fatal("Exiting...")
+func (service TracerouteDataService) Run(state *ApplicationState) (err error) {
+	var resultChannel <-chan *measurement.Result
+	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(46320619); err != nil {
+		return
+	}
+
+	service.handleIncomingMessages(state, resultChannel)
 	return nil
 }
