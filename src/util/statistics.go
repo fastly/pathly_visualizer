@@ -26,13 +26,15 @@ type MovingSummation interface {
 const binCount int = 100
 
 type binnedMovingSummation struct {
-	alignment time.Time
-	binPeriod time.Duration
-	bins      [binCount + 1]float64
+	alignment time.Time             //Time that is aligned with the most recent time
+	binPeriod time.Duration         //Period for each bin
+	bins      [binCount + 1]float64 //An array of size binCount + 1; each element in the bin is the current value at a timestamp
 }
 
 func (binnedSummation *binnedMovingSummation) binFor(timestamp time.Time) int {
+	//Get the latest bin by current alignment + bin period
 	binLatest := binnedSummation.alignment.Add(binnedSummation.binPeriod)
+	//Bin index is (binLatest - timestamp) / binPeriod
 	return int(binLatest.Sub(timestamp).Nanoseconds() / binnedSummation.binPeriod.Nanoseconds())
 }
 
@@ -52,27 +54,35 @@ func (binnedSummation *binnedMovingSummation) shiftBins(shift int) {
 }
 
 func (binnedSummation *binnedMovingSummation) IncrementUpperBound(timestamp time.Time) {
+	//Find the difference in time from the timestamp and the current alignment
 	offset := timestamp.Sub(binnedSummation.alignment)
+	//Get the number of shifts we need to make from the offset / bin period
 	shift := int(offset.Nanoseconds() / binnedSummation.binPeriod.Nanoseconds())
 
+	//If there is a shift (timestamp is greater than alignment) then shift bins
 	if shift > 0 {
+		//Shift bins
 		binnedSummation.shiftBins(shift)
+		//Set the alignment to be current alignment + (shift * bin period)
 		binnedSummation.alignment = binnedSummation.alignment.Add(time.Duration(shift) * binnedSummation.binPeriod)
 	}
 }
 
 func (binnedSummation *binnedMovingSummation) Append(value float64, timestamp time.Time) {
+	//Get the target bin for this timestamp
 	targetBin := binnedSummation.binFor(timestamp)
 	if targetBin < 0 {
 		log.Fatalln("Unable to add to moving statistic at time after upper bound")
 	}
 
+	//Set the target bin's value to be the value given
 	if targetBin < binCount+1 {
 		binnedSummation.bins[targetBin] += value
 	}
 }
 
 func (binnedSummation *binnedMovingSummation) Sum() (res float64) {
+	//Sum the values in the bins
 	for _, value := range binnedSummation.bins {
 		res += value
 	}
@@ -80,6 +90,7 @@ func (binnedSummation *binnedMovingSummation) Sum() (res float64) {
 }
 
 func MakeMovingSummation(period time.Duration) MovingSummation {
+	//Create a binnedMoving summation at time 0 and bin period to be total period / binCount
 	return &binnedMovingSummation{
 		alignment: time.Unix(0, 0),
 		binPeriod: time.Duration(period.Nanoseconds()/int64(binCount)) * time.Nanosecond,
@@ -102,8 +113,8 @@ func (avg *movingAverageImpl) IncrementUpperBound(timestamp time.Time) {
 }
 
 func (avg *movingAverageImpl) Append(value float64, timestamp time.Time) {
-	avg.sum.Append(value, timestamp)
-	avg.count.Append(1, timestamp)
+	avg.sum.Append(value, timestamp) //Add the current average for the sum
+	avg.count.Append(1, timestamp)   //Add 1 to the count
 }
 
 func (avg *movingAverageImpl) Average() float64 {
