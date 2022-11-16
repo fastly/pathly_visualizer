@@ -82,7 +82,7 @@ function Graph(props) {
         }
         // full traceroute data nodes
         else{
-            if(props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1] && props.response.nodes[i].id.timeoutsSinceKnown === 0) {
+            if((props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1]) && props.response.nodes[i].id.timeoutsSinceKnown === 0) {
                 responseNodes.push(
                     {
                         id: props.response.nodes[i].id.ip,
@@ -154,8 +154,8 @@ function Graph(props) {
             if(props.response.edges[i].start.timeoutsSinceKnown > 0) {
                 edgeSource = edgeSource + "-" + props.response.edges[i].start.timeoutsSinceKnown
             }
-            if(props.response.edges[i].target.timeoutsSinceKnown > 0){
-                edgeTarget = edgeTarget + "-" + props.response.edges[i].target.timeoutsSinceKnown
+            if(props.response.edges[i].end.timeoutsSinceKnown > 0){
+                edgeTarget = edgeTarget + "-" + props.response.edges[i].end.timeoutsSinceKnown
             }
             responseEdges.push(
                 {

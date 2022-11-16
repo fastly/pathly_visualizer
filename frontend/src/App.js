@@ -4,6 +4,7 @@ import Graph from './components/Graph';
 
 //test data for graph population
 import {tData} from './components/testTrcrt'
+import {tDataFull} from './components/testTrcrtFull'
 
 function App() {
 
@@ -100,7 +101,7 @@ function App() {
       {/* Left empty, graphs rendered on response load */}
       <div id="graphArea">
         {/* {graphList} */}
-        <Graph response={tData}></Graph>
+        <Graph response={tDataFull} clean={false}></Graph>
       </div>
     </>
   );
