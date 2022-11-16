@@ -67,11 +67,6 @@ type probeDestinationPair struct {
 	destination netip.Addr
 }
 
-//type RouteData struct {
-//	ProbeIp netip.Addr
-//	Edges   map[directedGraphEdge]edgeData
-//}
-
 const StatisticsPeriod time.Duration = 3 * 24 * time.Hour
 
 type RouteData struct {
@@ -145,18 +140,46 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 	routeData.routeUsage.Append(1.0, timestamp)
 }
 
-func (routeData *RouteData) addNodesToGraph(replies [][]*traceroute.Reply, timestamp time.Time) {
-	for _, hop := range replies {
-		for _, reply := range hop {
-			// We know that the address must be valid because we verified it in
-			ip := netip.MustParseAddr(reply.From())
+func (routeData *RouteData) addNodesToGraph(probeAddr netip.Addr, replies [][]*traceroute.Reply, timestamp time.Time) {
+	previousHop := []NodeId{wrapAddr(probeAddr)}
 
-			_ = ip // TODO
+	for _, hop := range replies {
+		var nextHop []NodeId
+
+		for _, reply := range hop {
+
+			if reply.X() == "*" {
+				for _, prevNodeId := range previousHop {
+					prevNodeId.timeoutsSinceKnown += 1
+					routeData.updateGraphNode(prevNodeId, reply, timestamp)
+					nextHop = append(nextHop, prevNodeId)
+				}
+
+				continue
+			}
+
+			// We know that the address must be valid because we verified it while checking reply for errors
+			ip := netip.MustParseAddr(reply.From())
+			nodeId := wrapAddr(ip)
+			routeData.updateGraphNode(nodeId, reply, timestamp)
+			nextHop = append(nextHop, nodeId)
 		}
+
+		previousHop = nextHop
 	}
 }
 
-func (routeData *RouteData) addOrCreateEdge(src, dst NodeId) *Edge {
+func (routeData *RouteData) updateGraphNode(id NodeId, reply *traceroute.Reply, timestamp time.Time) {
+	//Get the Node related to this id
+	node := routeData.getOrCreateNode(id)
+	//Update the moving statistics of the node
+	node.lastUsed = timestamp
+
+	node.averageRtt.IncrementUpperBound(timestamp)
+	node.averageRtt.Append(reply.Rtt(), timestamp)
+}
+
+func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
 	//Create the default edge
 	edgeKey := directedGraphEdge{
 		start: src,
@@ -178,7 +201,7 @@ func (routeData *RouteData) addOrCreateEdge(src, dst NodeId) *Edge {
 	return newEdge
 }
 
-func (routeData *RouteData) addOrCreateNode(id NodeId) *Node {
+func (routeData *RouteData) getOrCreateNode(id NodeId) *Node {
 	// Return node if present
 	if node, ok := routeData.Nodes[id]; ok {
 		return node
@@ -205,7 +228,7 @@ func (routeData *RouteData) addHopsToGraph(res [][]NodeId, timestamp time.Time) 
 		for _, src := range previousHop {
 			for _, dst := range nextHop {
 				//Get the edge if it already exists or make a new one
-				targetEdge := routeData.addOrCreateEdge(src, dst)
+				targetEdge := routeData.getOrCreateEdge(src, dst)
 				//Update the last used attribute to this measurement's timestamp if it is newer
 				if targetEdge.lastUsed.Before(timestamp) {
 					targetEdge.lastUsed = timestamp
@@ -296,7 +319,7 @@ func checkReplyForErrors(reply *traceroute.Reply) bool {
 	}
 
 	// Check that reply IP is a valid address
-	if _, err := netip.ParseAddr(reply.From()); err != nil {
+	if _, err := netip.ParseAddr(reply.From()); reply.X() != "*" && err != nil {
 		return true
 	}
 
@@ -305,5 +328,6 @@ func checkReplyForErrors(reply *traceroute.Reply) bool {
 
 func checkMeasurementForErrors(measurement *measurement.Result) bool {
 	// I checked the documentation, but I'm not sure if there are any errors recorded on the measurement level.
+	//TODO Check for same IP showing up in a path at multiple points
 	return false
 }
