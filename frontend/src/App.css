@@ -48,12 +48,13 @@ label{
 
 .react-flow__node.circle {
   border-radius: 50%;
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 10px;
+  font-weight: bold;
 }
 
 .App-logo {
