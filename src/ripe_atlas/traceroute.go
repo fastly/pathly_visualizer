@@ -55,7 +55,15 @@ func GetStreamingTraceRouteData(measurementID int) (<-chan *measurement.Result, 
 }
 
 func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) {
-	channel := make(chan *measurement.Result, 8)
+	byteChannel, outputChannel := util.MakeWorkGroup(func(bytes []byte, output chan *measurement.Result) {
+		var out *measurement.Result
+		if err := json.Unmarshal(bytes, &out); err != nil {
+			log.Println("Received error while reading input JSON:", err)
+		} else {
+			output <- out
+		}
+	})
+
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -66,24 +74,19 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 		bufferedRead := bufio.NewReader(file)
 		scanner := bufio.NewScanner(bufferedRead)
 
+		// Break input file into lines and distribute them to workers
 		for scanner.Scan() {
-			line := scanner.Text()
-			var found measurement.Result
-			if err := json.Unmarshal([]byte(line), &found); err != nil {
-				log.Println("Got error on line while unmarshalling JSON:", err)
-			}
-
-			channel <- &found
+			byteChannel <- scanner.Bytes()
 		}
 
 		if err := scanner.Err(); err != nil {
 			log.Println("Got error while reading traceroute data from file:", err)
 		}
 
-		close(channel)
+		close(byteChannel)
 	}()
 
-	return channel, nil
+	return outputChannel, nil
 }
 
 const DefaultCacheDuration = 12 * time.Hour
