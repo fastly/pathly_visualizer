@@ -3,7 +3,7 @@ module github.com/jmeggitt/fastly_anycast_experiments.git
 go 1.19
 
 require (
-	github.com/DNS-OARC/ripeatlas v0.0.0-20221107153620-ac4f03274eaf
+	github.com/DNS-OARC/ripeatlas v0.1.1
 	github.com/gin-gonic/gin v1.8.1
 	github.com/jmeggitt/nradix v0.0.0-20221104060745-76d400a5df10
 	github.com/joho/godotenv v1.4.0
