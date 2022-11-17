@@ -33,8 +33,9 @@ func (tracerouteData *TracerouteData) getOrCreateRouteData(probeId int, destinat
 
 	//Else, create a new Route data structure
 	newData := &RouteData{
-		Nodes: make(map[NodeId]*Node),
-		Edges: make(map[directedGraphEdge]*Edge),
+		routeUsage: util.MakeMovingSummation(StatisticsPeriod),
+		Nodes:      make(map[NodeId]*Node),
+		Edges:      make(map[directedGraphEdge]*Edge),
 	}
 
 	//Set the empty Route data for the key and return the data
@@ -119,9 +120,9 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 		return
 	}
 
-	probeIp, err := netip.ParseAddr(measurement.From())
+	probeIp, err := netip.ParseAddr(measurement.SrcAddr())
 	if err != nil {
-		log.Printf("Failed to parse probe IP %q: %v\n", measurement.From(), err)
+		log.Printf("Failed to parse probe IP %q: %v\n", measurement.SrcAddr(), err)
 		return
 	}
 
@@ -327,7 +328,11 @@ func checkReplyForErrors(reply *traceroute.Reply) bool {
 }
 
 func checkMeasurementForErrors(measurement *measurement.Result) bool {
-	// I checked the documentation, but I'm not sure if there are any errors recorded on the measurement level.
+	// Check if it was unable to resolve the source or destination addresses
+	if measurement.SrcAddr() == "" || measurement.DstAddr() == "" {
+		return true
+	}
+
 	//TODO Check for same IP showing up in a path at multiple points
 	return false
 }
