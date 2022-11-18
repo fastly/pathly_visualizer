@@ -87,12 +87,12 @@ function App() {
           </select>
           <br></br>
           <div className="switchBox">
-            <p>Full </p>
+            <p>Full Data</p>
             <label className="switch">
               <input type="checkbox" name="fullOrClean" id="fullOrClean"/>
               <span className="slider round"></span>
             </label>
-            <p> Clean</p>
+            <p>Clean Data</p>
           </div>
           <br></br>
           <button id="submitForm" type="submit">Visualize</button>
@@ -101,7 +101,8 @@ function App() {
       {/* Left empty, graphs rendered on response load */}
       <div id="graphArea">
         {/* {graphList} */}
-        <Graph response={tDataFull} clean={false}></Graph>
+        {/* <Graph response={tDataFull} clean={false}></Graph> */}
+        <Graph response={tData} clean={true}></Graph>
       </div>
     </>
   );

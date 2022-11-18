@@ -35,6 +35,8 @@ function Graph(props) {
     let responseNodes = []
     let responseEdges = []
 
+    let asnNodes = []
+
     //init nodes and edges from passed in props
     for(let i = 0; i < props.response.nodes.length; i++) {
         let probeIpSplit = props.response.probeIp.split(" / ")
@@ -47,6 +49,7 @@ function Graph(props) {
                         type: 'input',
                         data: {
                             label: props.response.nodes[i].ip,
+                            type: 'ip',
                             asn: props.response.nodes[i].asn,
                             avgRtt: props.response.nodes[i].averageRtt,
                             lastUsed: props.response.nodes[i].lastUsed,
@@ -56,6 +59,9 @@ function Graph(props) {
                         style: {
                             background: '#E98F91',
                         },
+                        parentNode: props.response.nodes[i].asn,
+                        extent: 'parent',
+                        zIndex: 1,
                         position,
                     }
                 )
@@ -66,6 +72,7 @@ function Graph(props) {
                         id: props.response.nodes[i].ip,
                         data: {
                             label: props.response.nodes[i].ip,
+                            type: 'ip',
                             asn: props.response.nodes[i].asn,
                             avgRtt: props.response.nodes[i].averageRtt,
                             lastUsed: props.response.nodes[i].lastUsed,
@@ -75,6 +82,9 @@ function Graph(props) {
                         style: {
                             background: '#5DCFE7',
                         },
+                        parentNode: props.response.nodes[i].asn,
+                        extent: 'parent',
+                        zIndex: 1,
                         position,
                     }
                 )
@@ -89,6 +99,7 @@ function Graph(props) {
                         type: 'input',
                         data: {
                             label: props.response.nodes[i].id.ip,
+                            type: 'ip',
                             asn: props.response.nodes[i].asn,
                             avgRtt: props.response.nodes[i].averageRtt,
                             lastUsed: props.response.nodes[i].lastUsed,
@@ -98,6 +109,9 @@ function Graph(props) {
                         style: {
                             background: '#E98F91',
                         },
+                        parentNode: props.response.nodes[i].asn,
+                        extent: 'parent',
+                        zIndex: 1,
                         position,
                     }
                 )
@@ -116,6 +130,7 @@ function Graph(props) {
                         id: nodeId,
                         data: {
                             label: nodeLabel,
+                            type: 'ip',
                             asn: props.response.nodes[i].asn,
                             avgRtt: props.response.nodes[i].averageRtt,
                             lastUsed: props.response.nodes[i].lastUsed,
@@ -125,12 +140,28 @@ function Graph(props) {
                         style: {
                             background: '#5DCFE7',
                         },
+                        parentNode: props.response.nodes[i].asn,
+                        extent: 'parent',
+                        zIndex: 1,
                         position,
                     }
                 )
             }
         }
-        
+        if(!asnNodes.includes(props.response.nodes[i].asn)){
+            responseNodes.push(
+                {
+                    id: props.response.nodes[i].asn,
+                    data: {
+                        label: props.response.nodes[i].asn,
+                        type: 'asn',
+                    },
+                    className: 'group',
+                    zIndex: 0,
+                    position,
+                }
+            )
+        }
     }
 
     //populate edges using response data
@@ -186,14 +217,99 @@ function Graph(props) {
         // layout positioning
         // sets arrow coming out of source from right and into target from left
         // sets position of each node
+
+        let asnPosMap = new Map()
+        let asnSizeMap = new Map()
+        let asnNodes = []
+
         nodes.forEach((node) => {
             const nodeWithPosition = dagreGraph.node(node.id)
             node.targetPosition = "left"
             node.sourcePosition = "right"
-    
+            
+            if(node.data.type !== "asn"){
+                node.position = {
+                    x: nodeWithPosition.x - nodeWidth / 2,
+                    y: nodeWithPosition.y - nodeHeight / 2,
+                }
+                if(!asnPosMap.has(node.data.asn)){
+                    asnPosMap.set(node.data.asn, node.position)
+                }
+                else if(asnPosMap.get(node.data.asn).y > node.position.y){
+                    asnPosMap.set(node.data.asn, {
+                        x: asnPosMap.get(node.data.asn).x,
+                        y: node.position.y,
+                    })
+                }
+                node.position = {
+                    x: node.position.x - asnPosMap.get(node.data.asn).x,
+                    y: node.position.y - asnPosMap.get(node.data.asn).y,
+                }
+                if(!asnSizeMap.has(node.data.asn)){
+                    asnSizeMap.set(node.data.asn, {
+                        lowWidth: node.position.x + nodeWidth,
+                        highWidth: node.position.x + nodeWidth,
+                        lowHeight: node.position.y + nodeHeight,
+                        highHeight: node.position.y + nodeHeight,
+                    })
+                }
+                else{
+                    let widthPlusPos = node.position.x + nodeWidth
+                    let heightPlusPos = node.position.y + nodeHeight
+                    let nodeAsn = asnSizeMap.get(node.data.asn)
+                    if(nodeAsn.lowWidth > widthPlusPos){
+                        asnSizeMap.set(node.data.asn, {
+                            lowWidth: widthPlusPos,
+                            highWidth: nodeAsn.highWidth,
+                            lowHeight: nodeAsn.lowHeight,
+                            highHeight: nodeAsn.highHeight,
+                        })
+                    }
+                    else if(nodeAsn.highWidth < widthPlusPos){
+                        asnSizeMap.set(node.data.asn, {
+                            lowWidth: nodeAsn.lowWidth,
+                            highWidth: widthPlusPos,
+                            lowHeight: nodeAsn.lowHeight,
+                            highHeight: nodeAsn.highHeight,
+                        })
+                    }
+                    else if(nodeAsn.lowHeight > heightPlusPos){
+                        asnSizeMap.set(node.data.asn, {
+                            lowWidth: nodeAsn.lowWidth,
+                            highWidth: nodeAsn.highWidth,
+                            lowHeight: heightPlusPos,
+                            highHeight: nodeAsn.highHeight,
+                        })
+                    }
+                    else if(nodeAsn.highHeight < heightPlusPos) {
+                        asnSizeMap.set(node.data.asn, {
+                            lowWidth: nodeAsn.lowWidth,
+                            highWidth: nodeAsn.highWidth,
+                            lowHeight: nodeAsn.lowHeight,
+                            highHeight: heightPlusPos,
+                        })
+                    }
+                }
+            }
+            else{
+                asnNodes.push(node)
+            }
+            
+            return node
+        })
+
+        asnNodes.forEach((node) => {
+            node.targetPosition = "left"
+            node.sourcePosition = "right"
+
             node.position = {
-                x: nodeWithPosition.x - nodeWidth / 2,
-                y: nodeWithPosition.y - nodeHeight / 2,
+                x: asnPosMap.get(node.id).x,
+                y: asnPosMap.get(node.id).y,
+            }
+
+            node.style = {
+                width: asnSizeMap.get(node.id).highWidth,
+                height: asnSizeMap.get(node.id).lowHeight + asnSizeMap.get(node.id).highHeight,
             }
 
             return node

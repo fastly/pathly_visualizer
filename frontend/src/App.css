@@ -132,6 +132,10 @@ input:checked + .slider:before {
   font-weight: bold;
 }
 
+.react-flow__node.group {
+  background-color: rgba(174, 174, 174, 0.2);
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
