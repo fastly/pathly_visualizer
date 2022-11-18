@@ -2,6 +2,7 @@ package rest_api
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"net/http"
@@ -11,6 +12,60 @@ import (
 type tracerouteRequest struct {
 	ProbeId       int
 	DestinationIp netip.Addr
+}
+
+func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	if !ok {
+		return
+	}
+
+	state.TracerouteDataLock.Lock()
+	_, ok = state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
+	state.TracerouteDataLock.Unlock()
+	if !ok {
+		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
+		return
+	}
+
+	// TODO: Fetch measurement ID based on destination
+	measurementId := 0
+
+	fileName := fmt.Sprintf("raw_traceroute_%d_%d.json", measurementId, request.ProbeId)
+
+	header := ctx.Writer.Header()
+	header["Content-type"] = []string{"application/octet-stream"}
+	header["Content-Disposition"] = []string{"attachment; filename=" + fileName}
+
+	// TODO: Actually fetch the raw data
+	rawData := []byte("not implemented, but at least the file worked!")
+
+	for len(rawData) > 0 {
+		n, err := ctx.Writer.Write(rawData)
+		if err != nil {
+			// At this point we have already sent the positive status code so this is just for internal logging
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+		}
+
+		rawData = rawData[n:]
+	}
+}
+func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	if !ok {
+		return
+	}
+
+	state.TracerouteDataLock.Lock()
+	_, ok = state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
+	state.TracerouteDataLock.Unlock()
+	if !ok {
+		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
+		return
+	}
+
+	// TODO: Handle this case. Currently just defer to full uncleaned version so it sends something
+	state.GetTracerouteFull(ctx)
 }
 
 func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {

@@ -18,6 +18,9 @@ type ApplicationState struct {
 	ipToAsnRefreshLock sync.RWMutex
 	TracerouteData     traceroute.TracerouteData
 	TracerouteDataLock sync.Mutex
+
+	ProbeData     map[int]*ProbeInfo
+	ProbeDataLock sync.RWMutex
 	// etc...
 }
 

@@ -38,6 +38,8 @@ loop:
 				break loop
 			}
 
+			state.BootstrapCollectProbeInfo(msg)
+
 			progressCounter.Increment()
 			state.TracerouteDataLock.Lock()
 			state.TracerouteData.AppendMeasurement(msg)
@@ -53,6 +55,11 @@ loop:
 func (service TracerouteDataService) Run(state *ApplicationState) (err error) {
 	var resultChannel <-chan *measurement.Result
 	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(46320619); err != nil {
+		return
+	}
+
+	service.handleIncomingMessages(state, resultChannel)
+	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(46320708); err != nil {
 		return
 	}
 

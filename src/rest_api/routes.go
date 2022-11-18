@@ -16,7 +16,15 @@ func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 
 	api := router.Group("/api")
 
+	api.GET("/destinations", func(cxt *gin.Context) {
+		cxt.JSON(http.StatusOK, []gin.H{{"ipv4": "151.101.0.1", "ipv6": "2a04:4e42::1"}})
+	})
+
+	api.GET("/probes", DataRoute{state}.GetProbesList)
+
 	traceroute := api.Group("/traceroute")
+	traceroute.POST("/raw", DataRoute{state}.GetTracerouteRaw)
+	traceroute.POST("/clean", DataRoute{state}.GetTracerouteClean)
 	traceroute.POST("/full", DataRoute{state}.GetTracerouteFull)
 
 	router.NoRoute(func(ctx *gin.Context) {
