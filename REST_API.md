@@ -58,7 +58,7 @@ const POSTBody = {
     "destinationIp": string,
 }
 const Response = {
-    "probeIp": int,
+    "probeIp": string,
     "nodes": [
         {
             "ip": string,
@@ -97,7 +97,7 @@ const NodeId = {
 }
 
 const Response = {
-    "probeIp": int,
+    "probeIp": NodeId,
     "nodes": [
         {
             "id": NodeId,
