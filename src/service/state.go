@@ -17,7 +17,7 @@ type ApplicationState struct {
 	IpToAsn            asn.IpToAsn
 	ipToAsnRefreshLock sync.RWMutex
 	TracerouteData     traceroute.TracerouteData
-	tracerouteDataLock sync.Mutex
+	TracerouteDataLock sync.Mutex
 	// etc...
 }
 

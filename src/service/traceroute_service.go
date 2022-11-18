@@ -39,9 +39,9 @@ loop:
 			}
 
 			progressCounter.Increment()
-			state.tracerouteDataLock.Lock()
+			state.TracerouteDataLock.Lock()
 			state.TracerouteData.AppendMeasurement(msg)
-			state.tracerouteDataLock.Unlock()
+			state.TracerouteDataLock.Unlock()
 		case <-time.After(3 * time.Second):
 			// Continue loop to allow progress counter to run
 		}
