@@ -2,7 +2,6 @@ package rest_api
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"net/http"
@@ -14,9 +13,6 @@ type tracerouteRequest struct {
 	DestinationIp netip.Addr
 }
 
-var ErrProbeDestinationPairNotFound = errors.New("unable to find this combination of probe and IP")
-var ErrNoData = errors.New("no error-free data to provide")
-
 func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {
 	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
 	if !ok {
@@ -27,12 +23,12 @@ func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {
 	defer state.TracerouteDataLock.Unlock()
 	routeData, ok := state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
 	if !ok {
-		_ = ctx.Error(ErrProbeDestinationPairNotFound)
+		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
 		return
 	}
 
 	if routeData.IsEmpty() {
-		_ = ctx.Error(ErrNoData)
+		ctx.String(http.StatusServiceUnavailable, "no error-free data to provide: %+v\n", request)
 		return
 	}
 
@@ -123,12 +119,17 @@ func (request *tracerouteRequest) UnmarshalJSON(bytes []byte) (err error) {
 func readJsonRequestBody[T any](ctx *gin.Context, limit int) (value T, ok bool) {
 	requestBytes, err := util.ReadAtMost(ctx.Request.Body, limit)
 	if err != nil {
-		_ = ctx.Error(err)
+		if err == util.ErrMessageTooLong {
+			ctx.String(http.StatusBadRequest, "Request too long\n")
+		} else {
+			ctx.Status(http.StatusInternalServerError)
+			_ = ctx.Error(err)
+		}
 		return
 	}
 
 	if err := json.Unmarshal(requestBytes, &value); err != nil {
-		_ = ctx.Error(err)
+		ctx.String(http.StatusBadRequest, "Request is not valid JSON: %s\n", err.Error())
 		return
 	}
 

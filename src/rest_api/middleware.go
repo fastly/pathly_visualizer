@@ -3,6 +3,7 @@ package rest_api
 import (
 	"github.com/gin-gonic/gin"
 	"log"
+	"net/http"
 )
 
 // TODO: Look into replacing this middleware with https://github.com/gin-contrib/cors
@@ -33,5 +34,8 @@ func handleErrors(ctx *gin.Context) {
 		}
 	}
 
-	ctx.Abort()
+	lastErr := ctx.Errors.Last()
+	if lastErr.IsType(gin.ErrorTypePublic) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": lastErr.Error()})
+	}
 }

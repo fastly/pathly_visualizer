@@ -190,7 +190,17 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 
 	// Apply updates to edges
 	timestamp := time.Unix(int64(measurement.Timestamp()), 0)
+	routeData.addNodesToGraph(probeIp, validReplies, timestamp)
 	routeData.addHopsToGraph(internalFormat, timestamp)
+
+	probeNode := routeData.getOrCreateNode(NodeId{
+		Ip:                 probeIp,
+		TimeoutsSinceKnown: 0,
+	})
+
+	probeNode.averageRtt.Append(0.0, timestamp)
+	probeNode.totalUsage.Append(1.0, timestamp)
+	probeNode.lastUsed = timestamp
 
 	// Increment route usage
 	routeData.routeUsage.Append(1.0, timestamp)
@@ -277,6 +287,7 @@ func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
 	// fill in with default edge
 	newEdge := &Edge{
 		usage:    util.MakeMovingSummation(StatisticsPeriod),
+		netUsage: util.MakeMovingSummation(StatisticsPeriod),
 		lastUsed: time.Unix(0, 0),
 	}
 
@@ -296,6 +307,7 @@ func (routeData *RouteData) getOrCreateNode(id NodeId) *Node {
 		lastUsed:   time.Unix(0, 0),
 		//averagePathLifespan: util.MakeMovingAverage(StatisticsPeriod),
 		totalOutboundUsage: util.MakeMovingSummation(StatisticsPeriod),
+		totalUsage:         util.MakeMovingSummation(StatisticsPeriod),
 	}
 
 	routeData.Nodes[id] = newNode

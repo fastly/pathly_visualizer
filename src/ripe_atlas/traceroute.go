@@ -76,7 +76,10 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 
 		// Break input file into lines and distribute them to workers
 		for scanner.Scan() {
-			byteChannel <- scanner.Bytes()
+			line := scanner.Bytes()
+			buffer := make([]byte, len(line), len(line))
+			copy(buffer, line)
+			byteChannel <- buffer
 		}
 
 		if err := scanner.Err(); err != nil {
