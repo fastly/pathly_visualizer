@@ -10,8 +10,6 @@ import (
 )
 
 // This file is a stub for where traceroute API routes will be handled
-
-// IPv4: 46320619
 type TracerouteData struct {
 	inner map[probeDestinationPair]*RouteData
 }
@@ -35,7 +33,7 @@ func (tracerouteData *TracerouteData) getOrCreateRouteData(probeId int, destinat
 	newData := &RouteData{
 		routeUsage: util.MakeMovingSummation(StatisticsPeriod),
 		Nodes:      make(map[NodeId]*Node),
-		Edges:      make(map[directedGraphEdge]*Edge),
+		Edges:      make(map[DirectedGraphEdge]*Edge),
 	}
 
 	//Set the empty Route data for the key and return the data
@@ -63,6 +61,15 @@ func (tracerouteData *TracerouteData) AppendMeasurement(measurement *measurement
 	data.AppendMeasurement(measurement)
 }
 
+func (tracerouteData *TracerouteData) GetRouteData(probe int, destination netip.Addr) (*RouteData, bool) {
+	routeData, ok := tracerouteData.inner[probeDestinationPair{
+		probeId:     probe,
+		destination: destination,
+	}]
+
+	return routeData, ok
+}
+
 type probeDestinationPair struct {
 	probeId     int
 	destination netip.Addr
@@ -71,47 +78,92 @@ type probeDestinationPair struct {
 const StatisticsPeriod time.Duration = 3 * 24 * time.Hour
 
 type RouteData struct {
+	probeIp    netip.Addr
 	routeUsage util.MovingSummation
 	Nodes      map[NodeId]*Node
-	Edges      map[directedGraphEdge]*Edge
+	Edges      map[DirectedGraphEdge]*Edge
+}
+
+func (routeData *RouteData) GetTotalUsages() int64 {
+	return int64(routeData.routeUsage.Sum())
+}
+
+func (routeData *RouteData) GetProbeIp() netip.Addr {
+	return routeData.probeIp
+}
+
+func (routeData *RouteData) IsEmpty() bool {
+	return !routeData.probeIp.IsValid()
 }
 
 type Node struct {
 	// It would be easier to compute the ASN when emitting to ripe atlas since we do not have access to the IpToAsn
 	// service here.
 	//asn                 int // Optional
-	averageRtt          util.MovingAverage
-	lastUsed            time.Time
-	averagePathLifespan util.MovingAverage // in seconds
+	averageRtt util.MovingAverage
+	lastUsed   time.Time
+	//averagePathLifespan util.MovingAverage // in seconds
+
 	// Used to determine the outboundCoverage of outbound edges
 	totalOutboundUsage util.MovingSummation
+
+	totalUsage util.MovingSummation
+}
+
+func (node *Node) GetAverageRtt() float64 {
+	return node.averageRtt.Average()
+}
+
+func (node *Node) GetLastUsed() time.Time {
+	return node.lastUsed
+}
+
+func (node *Node) GetNumUsages() int64 {
+	return int64(node.totalUsage.Sum())
+}
+
+func (node *Node) GetOutboundUsages() int64 {
+	return int64(node.totalOutboundUsage.Sum())
 }
 
 type NodeId struct {
-	ip                 netip.Addr
-	timeoutsSinceKnown int // zero on known node
+	Ip                 netip.Addr
+	TimeoutsSinceKnown int // zero on known node
 }
 
 type Edge struct {
 	// outboundCoverage = usage / srcNode.totalOutboundUsage
 	// totalTrafficCoverage = usage / RouteData.routeUsage
 	usage    util.MovingSummation
+	netUsage util.MovingSummation
 	lastUsed time.Time
+}
+
+func (edge *Edge) GetLastUsed() time.Time {
+	return edge.lastUsed
+}
+
+func (edge *Edge) GetUsage() int64 {
+	return int64(edge.usage.Sum())
+}
+
+func (edge *Edge) GetNetUsage() float64 {
+	return edge.usage.Sum()
 }
 
 func wrapAddr(addr netip.Addr) NodeId {
 	return NodeId{
-		ip:                 addr,
-		timeoutsSinceKnown: 0,
+		Ip:                 addr,
+		TimeoutsSinceKnown: 0,
 	}
 }
 
 func (hopOrTimeout NodeId) IsTimeout() bool {
-	return hopOrTimeout.timeoutsSinceKnown > 0
+	return hopOrTimeout.TimeoutsSinceKnown > 0
 }
 
-type directedGraphEdge struct {
-	start, stop NodeId
+type DirectedGraphEdge struct {
+	Start, Stop NodeId
 }
 
 func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
@@ -126,6 +178,10 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 		return
 	}
 
+	if !routeData.probeIp.IsValid() {
+		routeData.probeIp = probeIp
+	}
+
 	// Get Traceroute replies that don't contain errors
 	validReplies := filterValidReplies(measurement.TracerouteResults())
 
@@ -134,25 +190,53 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 
 	// Apply updates to edges
 	timestamp := time.Unix(int64(measurement.Timestamp()), 0)
+	routeData.addNodesToGraph(probeIp, validReplies, timestamp)
 	routeData.addHopsToGraph(internalFormat, timestamp)
 
+	probeNode := routeData.getOrCreateNode(NodeId{
+		Ip:                 probeIp,
+		TimeoutsSinceKnown: 0,
+	})
+
+	probeNode.averageRtt.Append(0.0, timestamp)
+	probeNode.totalUsage.Append(1.0, timestamp)
+	probeNode.lastUsed = timestamp
+
 	// Increment route usage
-	routeData.routeUsage.IncrementUpperBound(timestamp)
 	routeData.routeUsage.Append(1.0, timestamp)
+}
+
+func uniqueNodeIdsForLayer(replies []*traceroute.Reply, prevLayerCount int) int {
+	layerNodeCount := 0
+	foundTimeout := false
+
+	for _, reply := range replies {
+		if reply.X() == "*" {
+			if !foundTimeout {
+				layerNodeCount += prevLayerCount
+				foundTimeout = true
+			}
+		} else {
+			layerNodeCount += 1
+		}
+	}
+
+	return layerNodeCount
 }
 
 func (routeData *RouteData) addNodesToGraph(probeAddr netip.Addr, replies [][]*traceroute.Reply, timestamp time.Time) {
 	previousHop := []NodeId{wrapAddr(probeAddr)}
+	visitedNodes := map[NodeId]struct{}{}
 
 	for _, hop := range replies {
 		var nextHop []NodeId
+		expectedLayerNodes := uniqueNodeIdsForLayer(hop, len(previousHop))
 
 		for _, reply := range hop {
-
 			if reply.X() == "*" {
 				for _, prevNodeId := range previousHop {
-					prevNodeId.timeoutsSinceKnown += 1
-					routeData.updateGraphNode(prevNodeId, reply, timestamp)
+					prevNodeId.TimeoutsSinceKnown += 1
+					routeData.updateGraphNode(prevNodeId, reply, timestamp, expectedLayerNodes, visitedNodes)
 					nextHop = append(nextHop, prevNodeId)
 				}
 
@@ -162,29 +246,37 @@ func (routeData *RouteData) addNodesToGraph(probeAddr netip.Addr, replies [][]*t
 			// We know that the address must be valid because we verified it while checking reply for errors
 			ip := netip.MustParseAddr(reply.From())
 			nodeId := wrapAddr(ip)
-			routeData.updateGraphNode(nodeId, reply, timestamp)
+			routeData.updateGraphNode(nodeId, reply, timestamp, expectedLayerNodes, visitedNodes)
 			nextHop = append(nextHop, nodeId)
 		}
 
+		if expectedLayerNodes != len(nextHop) {
+			log.Println("Violated expectation for number of connected nodes; Found", len(nextHop), "Expected", expectedLayerNodes)
+		}
 		previousHop = nextHop
 	}
 }
 
-func (routeData *RouteData) updateGraphNode(id NodeId, reply *traceroute.Reply, timestamp time.Time) {
+func (routeData *RouteData) updateGraphNode(id NodeId, reply *traceroute.Reply, timestamp time.Time, numInLayer int, visitedNodes map[NodeId]struct{}) {
 	//Get the Node related to this id
 	node := routeData.getOrCreateNode(id)
 	//Update the moving statistics of the node
 	node.lastUsed = timestamp
 
-	node.averageRtt.IncrementUpperBound(timestamp)
 	node.averageRtt.Append(reply.Rtt(), timestamp)
+	//node.totalOutboundUsage.Append(1.0/float64(numInLayer), timestamp)
+
+	if _, ok := visitedNodes[id]; !ok {
+		node.totalUsage.Append(1.0, timestamp)
+		visitedNodes[id] = struct{}{}
+	}
 }
 
 func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
 	//Create the default edge
-	edgeKey := directedGraphEdge{
-		start: src,
-		stop:  dst,
+	edgeKey := DirectedGraphEdge{
+		Start: src,
+		Stop:  dst,
 	}
 
 	// Return edge if present
@@ -195,6 +287,7 @@ func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
 	// fill in with default edge
 	newEdge := &Edge{
 		usage:    util.MakeMovingSummation(StatisticsPeriod),
+		netUsage: util.MakeMovingSummation(StatisticsPeriod),
 		lastUsed: time.Unix(0, 0),
 	}
 
@@ -210,10 +303,11 @@ func (routeData *RouteData) getOrCreateNode(id NodeId) *Node {
 
 	// fill in with default edge
 	newNode := &Node{
-		averageRtt:          util.MakeMovingAverage(StatisticsPeriod),
-		lastUsed:            time.Unix(0, 0),
-		averagePathLifespan: util.MakeMovingAverage(StatisticsPeriod),
-		totalOutboundUsage:  util.MakeMovingSummation(StatisticsPeriod),
+		averageRtt: util.MakeMovingAverage(StatisticsPeriod),
+		lastUsed:   time.Unix(0, 0),
+		//averagePathLifespan: util.MakeMovingAverage(StatisticsPeriod),
+		totalOutboundUsage: util.MakeMovingSummation(StatisticsPeriod),
+		totalUsage:         util.MakeMovingSummation(StatisticsPeriod),
 	}
 
 	routeData.Nodes[id] = newNode
@@ -235,8 +329,9 @@ func (routeData *RouteData) addHopsToGraph(res [][]NodeId, timestamp time.Time) 
 					targetEdge.lastUsed = timestamp
 				}
 
-				targetEdge.usage.IncrementUpperBound(timestamp)
-				targetEdge.usage.Append(1.0/float64(len(nextHop)), timestamp)
+				routeData.getOrCreateNode(src).totalOutboundUsage.Append(1.0, timestamp)
+				targetEdge.usage.Append(1.0, timestamp)
+				targetEdge.netUsage.Append(1.0/float64(len(nextHop)), timestamp)
 			}
 		}
 
@@ -270,7 +365,7 @@ func toNodeId(probeAddr netip.Addr, hops [][]*traceroute.Reply) (res [][]NodeId)
 
 			// We hit a timeout, so now we need to copy the previous hop and apply that timeout to each node
 			for _, previousAddr := range previousHop {
-				previousAddr.timeoutsSinceKnown += 1
+				previousAddr.TimeoutsSinceKnown += 1
 				currentHop = append(currentHop, previousAddr)
 			}
 		}

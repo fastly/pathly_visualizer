@@ -12,8 +12,8 @@ type MovingStatistic interface {
 	// IncrementUpperBound shifts up the observed region of this moving statistic. The given timestamp must be greater
 	// than or equal to the previous upper bound.
 	IncrementUpperBound(timestamp time.Time)
-	// Append adds a new value to the moving statistic. The timestamp should coincide with the current observed period.
-	// By extension, the timestamp should always be less than or equal to the current upper bound
+	// Append adds a new value to the moving statistic. If timestamp is above upper bound, the upper bound will be
+	// incremented.
 	Append(value float64, timestamp time.Time)
 }
 
@@ -69,6 +69,7 @@ func (binnedSummation *binnedMovingSummation) IncrementUpperBound(timestamp time
 }
 
 func (binnedSummation *binnedMovingSummation) Append(value float64, timestamp time.Time) {
+	binnedSummation.IncrementUpperBound(timestamp)
 	//Get the target bin for this timestamp
 	targetBin := binnedSummation.binFor(timestamp)
 	if targetBin < 0 {
