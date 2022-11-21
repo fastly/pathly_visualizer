@@ -37,289 +37,317 @@ function Graph(props) {
 
     let asnNodes = []
 
+    // define here --> set to be auto layouted nodes and edges later
+    let layoutedNodes
+    let layoutedEdges
+
     //init nodes and edges from passed in props
-    for(let i = 0; i < props.response.nodes.length; i++) {
-        let probeIpSplit = props.response.probeIp.split(" / ")
-        // clean traceroute data nodes
-        if(props.clean){
-            if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
-                responseNodes.push(
-                    {
-                        id: props.response.nodes[i].ip,
-                        type: 'input',
-                        data: {
-                            label: props.response.nodes[i].ip,
-                            type: 'ip',
-                            asn: props.response.nodes[i].asn,
-                            avgRtt: props.response.nodes[i].averageRtt,
-                            lastUsed: props.response.nodes[i].lastUsed,
-                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                        },
-                        className: 'circle',
-                        style: {
-                            background: '#E98F91',
-                        },
-                        parentNode: props.response.nodes[i].asn,
-                        extent: 'parent',
-                        zIndex: 1,
-                        position,
-                    }
-                )
-            }
-            else{
-                responseNodes.push(
-                    {
-                        id: props.response.nodes[i].ip,
-                        data: {
-                            label: props.response.nodes[i].ip,
-                            type: 'ip',
-                            asn: props.response.nodes[i].asn,
-                            avgRtt: props.response.nodes[i].averageRtt,
-                            lastUsed: props.response.nodes[i].lastUsed,
-                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                        },
-                        className: 'circle',
-                        style: {
-                            background: '#5DCFE7',
-                        },
-                        parentNode: props.response.nodes[i].asn,
-                        extent: 'parent',
-                        zIndex: 1,
-                        position,
-                    }
-                )
-            }
-        }
-        // full traceroute data nodes
-        else{
-            if((props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1]) && props.response.nodes[i].id.timeoutsSinceKnown === 0) {
-                responseNodes.push(
-                    {
-                        id: props.response.nodes[i].id.ip,
-                        type: 'input',
-                        data: {
-                            label: props.response.nodes[i].id.ip,
-                            type: 'ip',
-                            asn: props.response.nodes[i].asn,
-                            avgRtt: props.response.nodes[i].averageRtt,
-                            lastUsed: props.response.nodes[i].lastUsed,
-                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                        },
-                        className: 'circle',
-                        style: {
-                            background: '#E98F91',
-                        },
-                        parentNode: props.response.nodes[i].asn,
-                        extent: 'parent',
-                        zIndex: 1,
-                        position,
-                    }
-                )
-            }
-            else{
-                // need to check if there are any timeouts in order to set proper id
-                let nodeId = props.response.nodes[i].id.ip
-                let nodeLabel = nodeId
-                if(props.response.nodes[i].id.timeoutsSinceKnown > 0){
-                    // concat number of timeouts since known onto id
-                    nodeId = nodeId + "-" + props.response.nodes[i].id.timeoutsSinceKnown
-                    nodeLabel = "*"
-                }
-                responseNodes.push(
-                    {
-                        id: nodeId,
-                        data: {
-                            label: nodeLabel,
-                            type: 'ip',
-                            asn: props.response.nodes[i].asn,
-                            avgRtt: props.response.nodes[i].averageRtt,
-                            lastUsed: props.response.nodes[i].lastUsed,
-                            avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                        },
-                        className: 'circle',
-                        style: {
-                            background: '#5DCFE7',
-                        },
-                        parentNode: props.response.nodes[i].asn,
-                        extent: 'parent',
-                        zIndex: 1,
-                        position,
-                    }
-                )
-            }
-        }
-        if(!asnNodes.includes(props.response.nodes[i].asn)){
-            responseNodes.push(
-                {
-                    id: props.response.nodes[i].asn,
-                    data: {
-                        label: props.response.nodes[i].asn,
-                        type: 'asn',
-                    },
-                    className: 'group',
-                    zIndex: 0,
-                    position,
-                }
-            )
-        }
-    }
-
-    //populate edges using response data
-    for(let i = 0; i < props.response.edges.length; i++) {
-        // clean traceroute data edges
-        if(props.clean){
-            responseEdges.push(
-                {
-                    id: props.response.edges[i].start + "-" + props.response.edges[i].end,
-                    source: props.response.edges[i].start,
-                    target: props.response.edges[i].end,
-                    // Add more down here about line weight, etc.
-                }
-            )
-        }
-        // full traceroute data edges
-        else{
-            // need to change id based on how many timeouts since known
-            let edgeSource = props.response.edges[i].start.ip
-            let edgeTarget = props.response.edges[i].end.ip
-            if(props.response.edges[i].start.timeoutsSinceKnown > 0) {
-                edgeSource = edgeSource + "-" + props.response.edges[i].start.timeoutsSinceKnown
-            }
-            if(props.response.edges[i].end.timeoutsSinceKnown > 0){
-                edgeTarget = edgeTarget + "-" + props.response.edges[i].end.timeoutsSinceKnown
-            }
-            responseEdges.push(
-                {
-                    id: edgeSource + "-" + edgeTarget,
-                    source: edgeSource,
-                    target: edgeTarget,
-                    // Add more down here about line weight, etc.
-                }
-            )
-        }
-    }
-    
-
-    const getLayout = (nodes, edges) => {
-        //set default layout to "left to right"
-        dagreGraph.setGraph({ rankdir: "LR" });
-    
-        //set nodes and edges in dagre graph
-        nodes.forEach((node) => {
-            dagreGraph.setNode(node.id, {width: nodeWidth, height: nodeHeight})
-        })
-        edges.forEach((edge) => {
-            dagreGraph.setEdge(edge.source, edge.target)
-        })
-    
-        dagre.layout(dagreGraph)
-    
-        // layout positioning
-        // sets arrow coming out of source from right and into target from left
-        // sets position of each node
-
-        let asnPosMap = new Map()
-        let asnSizeMap = new Map()
-        let asnNodes = []
-
-        nodes.forEach((node) => {
-            const nodeWithPosition = dagreGraph.node(node.id)
-            node.targetPosition = "left"
-            node.sourcePosition = "right"
+    // need to do so in constructNodesEdges to avoid rerenders when nodes are moved in graph
+    const constructNodesEdges = React.useMemo(() => {
+        // loop through all nodes
+        for(let i = 0; i < props.response.nodes.length; i++) {
+            let probeIpSplit = props.response.probeIp.split(" / ")
             
-            if(node.data.type !== "asn"){
-                node.position = {
-                    x: nodeWithPosition.x - nodeWidth / 2,
-                    y: nodeWithPosition.y - nodeHeight / 2,
-                }
-                if(!asnPosMap.has(node.data.asn)){
-                    asnPosMap.set(node.data.asn, node.position)
-                }
-                else if(asnPosMap.get(node.data.asn).y > node.position.y){
-                    asnPosMap.set(node.data.asn, {
-                        x: asnPosMap.get(node.data.asn).x,
-                        y: node.position.y,
-                    })
-                }
-                node.position = {
-                    x: node.position.x - asnPosMap.get(node.data.asn).x,
-                    y: node.position.y - asnPosMap.get(node.data.asn).y,
-                }
-                if(!asnSizeMap.has(node.data.asn)){
-                    asnSizeMap.set(node.data.asn, {
-                        lowWidth: node.position.x + nodeWidth,
-                        highWidth: node.position.x + nodeWidth,
-                        lowHeight: node.position.y + nodeHeight,
-                        highHeight: node.position.y + nodeHeight,
-                    })
+            let asnString
+            if(props.response.nodes[i].asn === undefined){
+                asnString = undefined
+            }
+            else{
+                asnString = props.response.nodes[i].asn.toString()
+            }
+    
+            // clean traceroute data nodes
+            if(props.clean){
+                if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
+                    responseNodes.push(
+                        {
+                            id: props.response.nodes[i].ip,
+                            type: 'input',
+                            data: {
+                                label: props.response.nodes[i].ip,
+                                type: 'ip',
+                                asn: asnString,
+                                avgRtt: props.response.nodes[i].averageRtt,
+                                lastUsed: props.response.nodes[i].lastUsed,
+                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                            },
+                            className: 'circle',
+                            style: {
+                                background: '#E98F91',
+                            },
+                            parentNode: asnString,
+                            extent: 'parent',
+                            zIndex: 1,
+                            position,
+                        }
+                    )
                 }
                 else{
-                    let widthPlusPos = node.position.x + nodeWidth
-                    let heightPlusPos = node.position.y + nodeHeight
-                    let nodeAsn = asnSizeMap.get(node.data.asn)
-                    if(nodeAsn.lowWidth > widthPlusPos){
-                        asnSizeMap.set(node.data.asn, {
-                            lowWidth: widthPlusPos,
-                            highWidth: nodeAsn.highWidth,
-                            lowHeight: nodeAsn.lowHeight,
-                            highHeight: nodeAsn.highHeight,
-                        })
-                    }
-                    else if(nodeAsn.highWidth < widthPlusPos){
-                        asnSizeMap.set(node.data.asn, {
-                            lowWidth: nodeAsn.lowWidth,
-                            highWidth: widthPlusPos,
-                            lowHeight: nodeAsn.lowHeight,
-                            highHeight: nodeAsn.highHeight,
-                        })
-                    }
-                    else if(nodeAsn.lowHeight > heightPlusPos){
-                        asnSizeMap.set(node.data.asn, {
-                            lowWidth: nodeAsn.lowWidth,
-                            highWidth: nodeAsn.highWidth,
-                            lowHeight: heightPlusPos,
-                            highHeight: nodeAsn.highHeight,
-                        })
-                    }
-                    else if(nodeAsn.highHeight < heightPlusPos) {
-                        asnSizeMap.set(node.data.asn, {
-                            lowWidth: nodeAsn.lowWidth,
-                            highWidth: nodeAsn.highWidth,
-                            lowHeight: nodeAsn.lowHeight,
-                            highHeight: heightPlusPos,
-                        })
-                    }
+                    responseNodes.push(
+                        {
+                            id: props.response.nodes[i].ip,
+                            data: {
+                                label: props.response.nodes[i].ip,
+                                type: 'ip',
+                                asn: asnString,
+                                avgRtt: props.response.nodes[i].averageRtt,
+                                lastUsed: props.response.nodes[i].lastUsed,
+                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                            },
+                            className: 'circle',
+                            style: {
+                                background: '#5DCFE7',
+                            },
+                            parentNode: asnString,
+                            extent: 'parent',
+                            zIndex: 1,
+                            position,
+                        }
+                    )
                 }
             }
+            // full traceroute data nodes
             else{
-                asnNodes.push(node)
+                if((props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1]) && (props.response.nodes[i].id.timeSinceKnown === 0)) {
+                    responseNodes.push(
+                        {
+                            id: props.response.nodes[i].id.ip,
+                            type: 'input',
+                            data: {
+                                label: props.response.nodes[i].id.ip,
+                                type: 'ip',
+                                asn: asnString,
+                                avgRtt: props.response.nodes[i].averageRtt,
+                                lastUsed: props.response.nodes[i].lastUsed,
+                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                            },
+                            className: 'circle',
+                            style: {
+                                background: '#E98F91',
+                            },
+                            parentNode: asnString,
+                            extent: 'parent',
+                            zIndex: 1,
+                            position,
+                        }
+                    )
+                }
+                else{
+                    // need to check if there are any timeouts in order to set proper id
+                    let nodeId = props.response.nodes[i].id.ip
+                    let nodeLabel = nodeId
+                    if(props.response.nodes[i].id.timeSinceKnown > 0){
+                        // concat number of timeouts since known onto id
+                        nodeId = nodeId + "-" + props.response.nodes[i].id.timeSinceKnown
+                        nodeLabel = "*"
+                    }
+                    responseNodes.push(
+                        {
+                            id: nodeId,
+                            data: {
+                                label: nodeLabel,
+                                type: 'ip',
+                                asn: asnString,
+                                avgRtt: props.response.nodes[i].averageRtt,
+                                lastUsed: props.response.nodes[i].lastUsed,
+                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                            },
+                            className: 'circle',
+                            style: {
+                                background: '#5DCFE7',
+                            },
+                            parentNode: asnString,
+                            extent: 'parent',
+                            zIndex: 1,
+                            position,
+                        }
+                    )
+                }
             }
-            
-            return node
-        })
-
-        asnNodes.forEach((node) => {
-            node.targetPosition = "left"
-            node.sourcePosition = "right"
-
-            node.position = {
-                x: asnPosMap.get(node.id).x,
-                y: asnPosMap.get(node.id).y,
+            if(!asnNodes.includes(props.response.nodes[i].asn) && props.response.nodes[i].asn !== undefined){
+                responseNodes.push(
+                    {
+                        id: props.response.nodes[i].asn.toString(),
+                        data: {
+                            label: props.response.nodes[i].asn,
+                            type: 'asn',
+                        },
+                        className: 'group',
+                        zIndex: 0,
+                        position,
+                    }
+                )
+    
+                asnNodes.push(props.response.nodes[i].asn)
             }
+        }
 
-            node.style = {
-                width: asnSizeMap.get(node.id).highWidth,
-                height: asnSizeMap.get(node.id).lowHeight + asnSizeMap.get(node.id).highHeight,
+        //populate edges using response data
+        for(let i = 0; i < props.response.edges.length; i++) {
+            // clean traceroute data edges
+            if(props.clean){
+                responseEdges.push(
+                    {
+                        id: props.response.edges[i].start + "-" + props.response.edges[i].end,
+                        source: props.response.edges[i].start,
+                        target: props.response.edges[i].end,
+                        // Add more down here about line weight, etc.
+                    }
+                )
             }
+            // full traceroute data edges
+            else{
+                // need to change id based on how many timeouts since known
+                let edgeSource = props.response.edges[i].start.ip
+                let edgeTarget = props.response.edges[i].end.ip
+                if(props.response.edges[i].start.timeSinceKnown > 0) {
+                    edgeSource = edgeSource + "-" + props.response.edges[i].start.timeSinceKnown
+                }
+                if(props.response.edges[i].end.timeSinceKnown > 0){
+                    edgeTarget = edgeTarget + "-" + props.response.edges[i].end.timeSinceKnown
+                }
+                responseEdges.push(
+                    {
+                        id: edgeSource + "-" + edgeTarget,
+                        source: edgeSource,
+                        target: edgeTarget,
+                        // Add more down here about line weight, etc.
+                    }
+                )
+            }
+        }
 
-            return node
-        })
-
-        return {nodes, edges}
-    }
-
-    // initialize nodes and edges w/ dagre auto layout
-    const { nodes: layoutedNodes, edges: layoutedEdges} = getLayout(responseNodes, responseEdges)
+        const getLayout = (nodes, edges) => {
+            //set default layout to "left to right"
+            dagreGraph.setGraph({ rankdir: "LR" });
+        
+            //set nodes and edges in dagre graph
+            nodes.forEach((node) => {
+                dagreGraph.setNode(node.id, {width: nodeWidth, height: nodeHeight})
+            })
+            edges.forEach((edge) => {
+                dagreGraph.setEdge(edge.source, edge.target)
+            })
+        
+            dagre.layout(dagreGraph)
+        
+            // layout positioning
+            // sets arrow coming out of source from right and into target from left
+            // sets position of each node
+    
+            let asnPosMap = new Map()
+            let asnSizeMap = new Map()
+            let asnGroups = []
+    
+            nodes.forEach((node) => {
+                const nodeWithPosition = dagreGraph.node(node.id)
+                node.targetPosition = "left"
+                node.sourcePosition = "right"
+                
+                if(node.data.type !== "asn"){
+                    node.position = {
+                        x: nodeWithPosition.x - nodeWidth / 2,
+                        y: nodeWithPosition.y - nodeHeight / 2,
+                    }
+                    if(node.data.asn !== undefined) {
+                        if(!asnPosMap.has(node.data.asn)){
+                            asnPosMap.set(node.data.asn, node.position)
+                        }
+                        else if(asnPosMap.get(node.data.asn).y > node.position.y){
+                            asnPosMap.set(node.data.asn, {
+                                x: asnPosMap.get(node.data.asn).x,
+                                y: node.position.y,
+                            })
+                        }
+                        else if(asnPosMap.get(node.data.asn).x > node.position.x){
+                            asnPosMap.set(node.data.asn, {
+                                x: node.position.x,
+                                y: asnPosMap.get(node.data.asn).y,
+                            })
+                        }
+                        node.position = {
+                            x: node.position.x - asnPosMap.get(node.data.asn).x,
+                            y: node.position.y - asnPosMap.get(node.data.asn).y,
+                        }
+                    }
+                    if(!asnSizeMap.has(node.data.asn)){
+                        asnSizeMap.set(node.data.asn, {
+                            lowWidth: node.position.x + nodeWidth,
+                            highWidth: node.position.x + nodeWidth,
+                            lowHeight: node.position.y + nodeHeight,
+                            highHeight: node.position.y + nodeHeight,
+                        })
+                    }
+                    else{
+                        let widthPlusPos = node.position.x + nodeWidth
+                        let heightPlusPos = node.position.y + nodeHeight
+                        let nodeAsn = asnSizeMap.get(node.data.asn)
+                        if(nodeAsn.lowWidth > widthPlusPos){
+                            asnSizeMap.set(node.data.asn, {
+                                lowWidth: widthPlusPos,
+                                highWidth: nodeAsn.highWidth,
+                                lowHeight: nodeAsn.lowHeight,
+                                highHeight: nodeAsn.highHeight,
+                            })
+                        }
+                        else if(nodeAsn.highWidth < widthPlusPos){
+                            asnSizeMap.set(node.data.asn, {
+                                lowWidth: nodeAsn.lowWidth,
+                                highWidth: widthPlusPos,
+                                lowHeight: nodeAsn.lowHeight,
+                                highHeight: nodeAsn.highHeight,
+                            })
+                        }
+                        else if(nodeAsn.lowHeight > heightPlusPos){
+                            asnSizeMap.set(node.data.asn, {
+                                lowWidth: nodeAsn.lowWidth,
+                                highWidth: nodeAsn.highWidth,
+                                lowHeight: heightPlusPos,
+                                highHeight: nodeAsn.highHeight,
+                            })
+                        }
+                        else if(nodeAsn.highHeight < heightPlusPos) {
+                            asnSizeMap.set(node.data.asn, {
+                                lowWidth: nodeAsn.lowWidth,
+                                highWidth: nodeAsn.highWidth,
+                                lowHeight: nodeAsn.lowHeight,
+                                highHeight: heightPlusPos,
+                            })
+                        }
+                    }
+                }
+                else{
+                    asnGroups.push(node)
+                }
+                
+                return node
+            })
+    
+            asnGroups.forEach((node) => {
+                node.targetPosition = "left"
+                node.sourcePosition = "right"
+    
+                node.position = {
+                    x: asnPosMap.get(node.id).x,
+                    y: asnPosMap.get(node.id).y,
+                }
+    
+                node.style = {
+                    width: asnSizeMap.get(node.id).highWidth,
+                    height: asnSizeMap.get(node.id).lowHeight + asnSizeMap.get(node.id).highHeight,
+                }
+    
+                return node
+            })
+    
+            return {nodes, edges}
+        }
+    
+        // initialize nodes and edges w/ dagre auto layout
+        let layout = getLayout(responseNodes, responseEdges)
+        layoutedNodes = layout.nodes
+        layoutedEdges = layout.edges
+    }, [])
 
     // need these for graph props later
     const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
@@ -392,7 +420,7 @@ function Graph(props) {
 
     return (
         <div style={{height: 600, width: 600, marginBottom: 100}}>
-            <h2>{props.response.probeIp} to Destination</h2>
+            <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}

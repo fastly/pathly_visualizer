@@ -27,39 +27,71 @@ function App() {
     let ipSplit = formObj.destinationIp.split(" / ")
     const ipv4FormObj = 
       {
-        probeId: formObj.probeId,
+        probeId: parseInt(formObj.probeId),
         destinationIp: ipSplit[0],
       }
     const ipv6FormObj = 
       {
-        probeId: formObj.probeId,
+        probeId: parseInt(formObj.probeId),
         destinationIp: ipSplit[1],
       }
 
+    const sendingObjs = [ipv4FormObj, ipv6FormObj] 
+
     // create new http rq --> note, I've used XMLHttpRequest before but if there's a preferred method of sending requests use that instead
-    const xhr = new XMLHttpRequest()
-    // I assume keeping localhost here is fine as the code will be running on GCP regardless
-    if(document.getElementById("fullOrClean").checked){
-      xhr.open("POST", "http://localhost:8080/api/traceroute/clean", true)
-    }
-    else{
-      xhr.open("POST", "http://localhost:8080/api/traceroute/full", true)
-    }
-    xhr.setRequestHeader("Content-Type", "application/json")
-    // what happens when response is received
-    xhr.onreadystatechange = () => {
-      if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-        console.log(xhr.response)
-        //concat graph onto current graph list, gets rerendered w/ new graph list
-        setGraphList(graphList.concat(<Graph response={xhr.response} form={formObj} clean={document.getElementById("fullOrClean").checked}></Graph>))
+    const xhr = new XMLHttpRequest();
+    
+    let combProbeIp = "";
+    let combNodes = [];
+    let combEdges = [];
+    // need to loop to synchronously make requests for ipv4 and 6
+    (function loop(i, length) {
+      if(i >= length){
+        return
       }
-    }
+      // I assume keeping localhost here is fine as the code will be running on GCP regardless
+      if(document.getElementById("fullOrClean").checked){
+        xhr.open("POST", "http://localhost:8080/api/traceroute/clean", true)
+      }
+      else{
+        xhr.open("POST", "http://localhost:8080/api/traceroute/full", true)
+      }
+      xhr.setRequestHeader("Content-Type", "application/json")
+      // what happens when response is received
+      xhr.onreadystatechange = () => {
+        if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+          let res = JSON.parse(xhr.response)
+          console.log(res)
+          // if request was made for ipv6, combine ipv4 and 6 responses and concat graph onto graphlist
+          combNodes = combNodes.concat(res.nodes)
+          combEdges = combEdges.concat(res.edges)
+          if(combProbeIp === ""){
+            combProbeIp = res.probeIp
+          }
+          else{
+            combProbeIp = combProbeIp + " / " + res.probeIp
+          }
 
-    //two requests for ipv4 and 6 addresses
-    xhr.send(JSON.stringify(ipv4FormObj))
-    xhr.send(JSON.stringify(ipv6FormObj))
+          if(i === 1){
+            let combinedResponse = {
+              probeIp: combProbeIp,
+              nodes: combNodes,
+              edges: combEdges,
+            }
+            console.log(combinedResponse)
+            //concat graph onto current graph list, gets rerendered w/ new graph list
+            setGraphList(graphList.concat(<Graph response={combinedResponse} form={formObj} clean={document.getElementById("fullOrClean").checked}></Graph>))
+          }
+          loop(i+1, length)
+        }
+      }
 
-    // TODO --> once receiving responses, concat all responses together into one large response to be able to represent ipv4 and 6 on same graph
+      console.log("sending request")
+      console.log(sendingObjs[i])
+      //two requests for ipv4 and 6 addresses
+      xhr.send(JSON.stringify(sendingObjs[i]))
+    })(0, sendingObjs.length)
+    
   }
 
   return (
@@ -100,9 +132,9 @@ function App() {
       </div>
       {/* Left empty, graphs rendered on response load */}
       <div id="graphArea">
-        {/* {graphList} */}
+        {graphList}
         {/* <Graph response={tDataFull} clean={false}></Graph> */}
-        <Graph response={tData} clean={true}></Graph>
+        {/* <Graph response={tData} clean={true}></Graph> */}
       </div>
     </>
   );
