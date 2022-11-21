@@ -21,6 +21,5 @@ func (service *ProbeCollectionService) Init(state *ApplicationState) (err error)
 
 func (service *ProbeCollectionService) Run(state *ApplicationState) error {
 	state.probeCollection.GetProbesFromRipeAtlas()
-
 	return nil
 }

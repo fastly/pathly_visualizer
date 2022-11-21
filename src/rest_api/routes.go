@@ -1,6 +1,7 @@
 package rest_api
 
 import (
+	"bytes"
 	"github.com/gin-gonic/gin"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/service"
 	"net/http"
@@ -30,7 +31,7 @@ func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 	})
 
 	api.GET("/probes", func(ctx *gin.Context) {
-		//ctx.JSON(http.StatusOK, gin.H{"probes": bytes.NewBuffer(jsonStruct)})
+		ctx.JSON(http.StatusOK, gin.H{"probes": bytes.NewBuffer(state.probeCollection)})
 	})
 
 	router.NoRoute(func(ctx *gin.Context) {
