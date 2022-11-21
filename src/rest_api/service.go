@@ -22,6 +22,10 @@ func (service *RestApiService) Name() string {
 func (service *RestApiService) Init(state *service.ApplicationState) (err error) {
 	service.router = gin.Default()
 
+	if err := service.router.SetTrustedProxies(nil); err != nil {
+		return err
+	}
+
 	// Setup middleware
 	log.Println("Setting up REST API middleware")
 	service.router.Use(allowCORSMiddleware)
