@@ -1,11 +1,13 @@
 package traceroute
 
 import (
+	"fmt"
 	"github.com/DNS-OARC/ripeatlas/measurement"
 	"github.com/DNS-OARC/ripeatlas/measurement/traceroute"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"log"
 	"net/netip"
+	"sort"
 	"time"
 )
 
@@ -131,6 +133,10 @@ type NodeId struct {
 	TimeoutsSinceKnown int // zero on known node
 }
 
+func (nodeId NodeId) String() string {
+	return fmt.Sprintf("[%v, Timeout=%d]", nodeId.Ip, nodeId.TimeoutsSinceKnown)
+}
+
 type Edge struct {
 	// outboundCoverage = usage / srcNode.totalOutboundUsage
 	// totalTrafficCoverage = usage / RouteData.routeUsage
@@ -224,6 +230,43 @@ func uniqueNodeIdsForLayer(replies []*traceroute.Reply, prevLayerCount int) int 
 	return layerNodeCount
 }
 
+type sortableList []NodeId
+
+func (list sortableList) Len() int {
+	return len(list)
+}
+func (list sortableList) Less(i, j int) bool {
+	if list[i].Ip == list[j].Ip {
+		return list[i].TimeoutsSinceKnown < list[j].TimeoutsSinceKnown
+	}
+
+	return list[i].Ip.Less(list[j].Ip)
+}
+
+func (list sortableList) Swap(i, j int) {
+	tmp := list[i]
+	list[i] = list[j]
+	list[j] = tmp
+}
+
+func dedupNodeIds(list []NodeId) []NodeId {
+	if len(list) == 0 {
+		return list
+	}
+
+	sort.Sort(sortableList(list))
+
+	i := 1
+	for j := 1; j < len(list); j++ {
+		if list[i-1] != list[j] {
+			list[i] = list[j]
+			i += 1
+		}
+	}
+
+	return list[:i]
+}
+
 func (routeData *RouteData) addNodesToGraph(probeAddr netip.Addr, replies [][]*traceroute.Reply, timestamp time.Time) {
 	previousHop := []NodeId{wrapAddr(probeAddr)}
 	visitedNodes := map[NodeId]struct{}{}
@@ -231,40 +274,44 @@ func (routeData *RouteData) addNodesToGraph(probeAddr netip.Addr, replies [][]*t
 	for _, hop := range replies {
 		var nextHop []NodeId
 		expectedLayerNodes := uniqueNodeIdsForLayer(hop, len(previousHop))
+		handledTimeout := false
 
 		for _, reply := range hop {
-			if reply.X() == "*" {
+			if reply.X() != "" {
 				for _, prevNodeId := range previousHop {
 					prevNodeId.TimeoutsSinceKnown += 1
-					routeData.updateGraphNode(prevNodeId, reply, timestamp, expectedLayerNodes, visitedNodes)
-					nextHop = append(nextHop, prevNodeId)
+					routeData.updateGraphNode(prevNodeId, reply, timestamp, visitedNodes)
+
+					if !handledTimeout {
+						nextHop = append(nextHop, prevNodeId)
+					}
 				}
 
+				handledTimeout = true
 				continue
 			}
 
 			// We know that the address must be valid because we verified it while checking reply for errors
 			ip := netip.MustParseAddr(reply.From())
 			nodeId := wrapAddr(ip)
-			routeData.updateGraphNode(nodeId, reply, timestamp, expectedLayerNodes, visitedNodes)
+			routeData.updateGraphNode(nodeId, reply, timestamp, visitedNodes)
 			nextHop = append(nextHop, nodeId)
 		}
 
 		if expectedLayerNodes != len(nextHop) {
 			log.Println("Violated expectation for number of connected nodes; Found", len(nextHop), "Expected", expectedLayerNodes)
 		}
-		previousHop = nextHop
+		previousHop = dedupNodeIds(nextHop)
 	}
 }
 
-func (routeData *RouteData) updateGraphNode(id NodeId, reply *traceroute.Reply, timestamp time.Time, numInLayer int, visitedNodes map[NodeId]struct{}) {
+func (routeData *RouteData) updateGraphNode(id NodeId, reply *traceroute.Reply, timestamp time.Time, visitedNodes map[NodeId]struct{}) {
 	//Get the Node related to this id
 	node := routeData.getOrCreateNode(id)
 	//Update the moving statistics of the node
 	node.lastUsed = timestamp
 
 	node.averageRtt.Append(reply.Rtt(), timestamp)
-	//node.totalOutboundUsage.Append(1.0/float64(numInLayer), timestamp)
 
 	if _, ok := visitedNodes[id]; !ok {
 		node.totalUsage.Append(1.0, timestamp)
@@ -348,6 +395,7 @@ func toNodeId(probeAddr netip.Addr, hops [][]*traceroute.Reply) (res [][]NodeId)
 	for _, hop := range hops {
 		var currentHop []NodeId
 
+		addedTimeouts := false
 		//Check each reply in a hop
 		for _, reply := range hop {
 			//Normal reply means we create a NodeId and add it to our list
@@ -363,6 +411,11 @@ func toNodeId(probeAddr netip.Addr, hops [][]*traceroute.Reply) (res [][]NodeId)
 				continue
 			}
 
+			if addedTimeouts {
+				continue
+			}
+			addedTimeouts = true
+
 			// We hit a timeout, so now we need to copy the previous hop and apply that timeout to each node
 			for _, previousAddr := range previousHop {
 				previousAddr.TimeoutsSinceKnown += 1
@@ -370,6 +423,7 @@ func toNodeId(probeAddr netip.Addr, hops [][]*traceroute.Reply) (res [][]NodeId)
 			}
 		}
 
+		currentHop = dedupNodeIds(currentHop)
 		//Add the current hop's results and prepare for the next hop
 		res = append(res, currentHop)
 		previousHop = currentHop
@@ -406,6 +460,11 @@ func checkReplyForErrors(reply *traceroute.Reply) bool {
 	// Check for ICMP errors
 	if reply.Err() != "" {
 		return true
+	}
+
+	// Allow timeouts
+	if reply.X() == "*" {
+		return false
 	}
 
 	// We can't completely tell for sure if a reply was late or not, but we can guess based on which of the fields is
