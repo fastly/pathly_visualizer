@@ -3,7 +3,11 @@ package traceroute
 import (
 	"fmt"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
+	"log"
 	"net/netip"
+	"os"
+	"strconv"
+	"sync"
 	"time"
 )
 
@@ -37,7 +41,33 @@ type probeDestinationPair struct {
 	destination netip.Addr
 }
 
-const StatisticsPeriod = 3 * 24 * time.Hour
+var statisticsPeriod time.Duration
+var statisticsPeriodLoader sync.Once
+
+func getStatisticsPeriod() time.Duration {
+	statisticsPeriodLoader.Do(func() {
+		value, ok := os.LookupEnv("STATISTICS_PERIOD")
+
+		if !ok {
+			log.Println("Unable to find STATISTICS_PERIOD in .env. Using default statistics period of 3 days")
+			statisticsPeriod = 3 * 24 * time.Hour
+			return
+		}
+
+		period, err := strconv.ParseUint(value, 0, 64)
+		if err != nil {
+			log.Printf("Expected unsigned int value for  STATISTICS_PERIOD, but found %q. "+
+				"Using default statistics period of 3 days\n", value)
+			statisticsPeriod = 3 * 24 * time.Hour
+			return
+		}
+
+		log.Println("Using STATISTICS_PERIOD of", period, "seconds")
+		statisticsPeriod = time.Duration(period) * time.Second
+	})
+
+	return statisticsPeriod
+}
 
 type RouteData struct {
 	probeIp    netip.Addr
@@ -49,7 +79,7 @@ type RouteData struct {
 func MakeRouteData() *RouteData {
 	return &RouteData{
 		// probeIp: nil,
-		routeUsage: util.MakeMovingSummation(StatisticsPeriod),
+		routeUsage: util.MakeMovingSummation(getStatisticsPeriod()),
 		Nodes:      make(map[NodeId]*Node),
 		Edges:      make(map[DirectedGraphEdge]*Edge),
 	}
@@ -93,10 +123,10 @@ type Node struct {
 
 func MakeNode() *Node {
 	return &Node{
-		averageRtt:         util.MakeMovingAverage(StatisticsPeriod),
+		averageRtt:         util.MakeMovingAverage(getStatisticsPeriod()),
 		lastUsed:           time.Unix(0, 0),
-		totalOutboundUsage: util.MakeMovingSummation(StatisticsPeriod),
-		totalUsage:         util.MakeMovingSummation(StatisticsPeriod),
+		totalOutboundUsage: util.MakeMovingSummation(getStatisticsPeriod()),
+		totalUsage:         util.MakeMovingSummation(getStatisticsPeriod()),
 	}
 }
 
@@ -150,8 +180,8 @@ type Edge struct {
 
 func MakeEdge() *Edge {
 	return &Edge{
-		usage:    util.MakeMovingSummation(StatisticsPeriod),
-		netUsage: util.MakeMovingSummation(StatisticsPeriod),
+		usage:    util.MakeMovingSummation(getStatisticsPeriod()),
+		netUsage: util.MakeMovingSummation(getStatisticsPeriod()),
 		lastUsed: time.Unix(0, 0),
 	}
 }
