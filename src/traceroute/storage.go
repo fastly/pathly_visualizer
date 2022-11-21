@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// This file is a stub for where traceroute API routes will be handled
 type TracerouteData struct {
 	inner map[probeDestinationPair]*RouteData
 }
@@ -21,22 +20,7 @@ func MakeTracerouteData() TracerouteData {
 func (tracerouteData *TracerouteData) getOrCreateRouteData(probeId int, destination netip.Addr) *RouteData {
 	// Create the key using the source and destination
 	key := probeDestinationPair{probeId, destination}
-
-	// If there already is a value associated with the key, return that value
-	if data, ok := tracerouteData.inner[key]; ok {
-		return data
-	}
-
-	// Else, create a new Route data structure
-	newData := &RouteData{
-		routeUsage: util.MakeMovingSummation(StatisticsPeriod),
-		Nodes:      make(map[NodeId]*Node),
-		Edges:      make(map[DirectedGraphEdge]*Edge),
-	}
-
-	// Set the empty Route data for the key and return the data
-	tracerouteData.inner[key] = newData
-	return newData
+	return util.MapGetOrCreate(tracerouteData.inner, key, MakeRouteData)
 }
 
 func (tracerouteData *TracerouteData) GetRouteData(probe int, destination netip.Addr) (*RouteData, bool) {
@@ -53,13 +37,22 @@ type probeDestinationPair struct {
 	destination netip.Addr
 }
 
-const StatisticsPeriod time.Duration = 3 * 24 * time.Hour
+const StatisticsPeriod = 3 * 24 * time.Hour
 
 type RouteData struct {
 	probeIp    netip.Addr
 	routeUsage util.MovingSummation
 	Nodes      map[NodeId]*Node
 	Edges      map[DirectedGraphEdge]*Edge
+}
+
+func MakeRouteData() *RouteData {
+	return &RouteData{
+		// probeIp: nil,
+		routeUsage: util.MakeMovingSummation(StatisticsPeriod),
+		Nodes:      make(map[NodeId]*Node),
+		Edges:      make(map[DirectedGraphEdge]*Edge),
+	}
 }
 
 func (routeData *RouteData) GetTotalUsages() int64 {
@@ -74,6 +67,19 @@ func (routeData *RouteData) IsEmpty() bool {
 	return !routeData.probeIp.IsValid()
 }
 
+func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
+	edgeKey := DirectedGraphEdge{
+		Start: src,
+		Stop:  dst,
+	}
+
+	return util.MapGetOrCreate(routeData.Edges, edgeKey, MakeEdge)
+}
+
+func (routeData *RouteData) getOrCreateNode(id NodeId) *Node {
+	return util.MapGetOrCreate(routeData.Nodes, id, MakeNode)
+}
+
 type Node struct {
 	// It would be easier to compute the ASN when emitting to ripe atlas since we do not have access to the IpToAsn
 	// service here.
@@ -82,8 +88,16 @@ type Node struct {
 
 	// Used to determine the outboundCoverage of outbound edges
 	totalOutboundUsage util.MovingSummation
+	totalUsage         util.MovingSummation
+}
 
-	totalUsage util.MovingSummation
+func MakeNode() *Node {
+	return &Node{
+		averageRtt:         util.MakeMovingAverage(StatisticsPeriod),
+		lastUsed:           time.Unix(0, 0),
+		totalOutboundUsage: util.MakeMovingSummation(StatisticsPeriod),
+		totalUsage:         util.MakeMovingSummation(StatisticsPeriod),
+	}
 }
 
 func (node *Node) GetAverageRtt() float64 {
@@ -107,8 +121,23 @@ type NodeId struct {
 	TimeoutsSinceKnown int // zero on known node
 }
 
+func WrapAddr(addr netip.Addr) NodeId {
+	return NodeId{
+		Ip:                 addr,
+		TimeoutsSinceKnown: 0,
+	}
+}
+
+func (nodeId NodeId) IsTimeout() bool {
+	return nodeId.TimeoutsSinceKnown > 0
+}
+
 func (nodeId NodeId) String() string {
 	return fmt.Sprintf("[%v, Timeout=%d]", nodeId.Ip, nodeId.TimeoutsSinceKnown)
+}
+
+type DirectedGraphEdge struct {
+	Start, Stop NodeId
 }
 
 type Edge struct {
@@ -117,6 +146,14 @@ type Edge struct {
 	usage    util.MovingSummation
 	netUsage util.MovingSummation
 	lastUsed time.Time
+}
+
+func MakeEdge() *Edge {
+	return &Edge{
+		usage:    util.MakeMovingSummation(StatisticsPeriod),
+		netUsage: util.MakeMovingSummation(StatisticsPeriod),
+		lastUsed: time.Unix(0, 0),
+	}
 }
 
 func (edge *Edge) GetLastUsed() time.Time {
@@ -129,61 +166,4 @@ func (edge *Edge) GetUsage() int64 {
 
 func (edge *Edge) GetNetUsage() float64 {
 	return edge.usage.Sum()
-}
-
-func wrapAddr(addr netip.Addr) NodeId {
-	return NodeId{
-		Ip:                 addr,
-		TimeoutsSinceKnown: 0,
-	}
-}
-
-func (hopOrTimeout NodeId) IsTimeout() bool {
-	return hopOrTimeout.TimeoutsSinceKnown > 0
-}
-
-type DirectedGraphEdge struct {
-	Start, Stop NodeId
-}
-
-func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
-	//Create the default edge
-	edgeKey := DirectedGraphEdge{
-		Start: src,
-		Stop:  dst,
-	}
-
-	// Return edge if present
-	if edge, ok := routeData.Edges[edgeKey]; ok {
-		return edge
-	}
-
-	// fill in with default edge
-	newEdge := &Edge{
-		usage:    util.MakeMovingSummation(StatisticsPeriod),
-		netUsage: util.MakeMovingSummation(StatisticsPeriod),
-		lastUsed: time.Unix(0, 0),
-	}
-
-	routeData.Edges[edgeKey] = newEdge
-	return newEdge
-}
-
-func (routeData *RouteData) getOrCreateNode(id NodeId) *Node {
-	// Return node if present
-	if node, ok := routeData.Nodes[id]; ok {
-		return node
-	}
-
-	// fill in with default edge
-	newNode := &Node{
-		averageRtt: util.MakeMovingAverage(StatisticsPeriod),
-		lastUsed:   time.Unix(0, 0),
-		//averagePathLifespan: util.MakeMovingAverage(StatisticsPeriod),
-		totalOutboundUsage: util.MakeMovingSummation(StatisticsPeriod),
-		totalUsage:         util.MakeMovingSummation(StatisticsPeriod),
-	}
-
-	routeData.Nodes[id] = newNode
-	return newNode
 }

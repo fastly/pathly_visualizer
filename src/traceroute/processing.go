@@ -125,7 +125,7 @@ func dedupNodeIds(list []NodeId) []NodeId {
 }
 
 func (routeData *RouteData) addNodesToGraph(probeAddr netip.Addr, replies [][]*traceroute.Reply, timestamp time.Time) {
-	previousHop := []NodeId{wrapAddr(probeAddr)}
+	previousHop := []NodeId{WrapAddr(probeAddr)}
 	visitedNodes := map[NodeId]struct{}{}
 
 	for _, hop := range replies {
@@ -150,7 +150,7 @@ func (routeData *RouteData) addNodesToGraph(probeAddr netip.Addr, replies [][]*t
 
 			// We know that the address must be valid because we verified it while checking reply for errors
 			ip := netip.MustParseAddr(reply.From())
-			nodeId := wrapAddr(ip)
+			nodeId := WrapAddr(ip)
 			routeData.updateGraphNode(nodeId, reply, timestamp, visitedNodes)
 			nextHop = append(nextHop, nodeId)
 		}
@@ -203,7 +203,7 @@ func (routeData *RouteData) addHopsToGraph(res [][]NodeId, timestamp time.Time) 
 
 func toNodeId(probeAddr netip.Addr, hops [][]*traceroute.Reply) (res [][]NodeId) {
 	//Create the Source Node layer with the probeAddr
-	previousHop := []NodeId{wrapAddr(probeAddr)}
+	previousHop := []NodeId{WrapAddr(probeAddr)}
 	res = append(res, previousHop)
 
 	//Go through each hop and create a NodeId array
@@ -222,7 +222,7 @@ func toNodeId(probeAddr netip.Addr, hops [][]*traceroute.Reply) (res [][]NodeId)
 					continue
 				}
 
-				currentHop = append(currentHop, wrapAddr(replyAddr))
+				currentHop = append(currentHop, WrapAddr(replyAddr))
 				continue
 			}
 
