@@ -4,16 +4,24 @@ import (
 	"testing"
 )
 
-func TestGetProbeID(t *testing.T) {
+func TestGetProbes(t *testing.T) {
 
 	probeCollection := NewProbeCollection()
-	probeCollection.GetProbeById(54318)
-	probeMap := probeCollection.ProbeMap
+	probeCollection.GetProbesFromRipeAtlas()
 
-	expectedLength := 1
+	if probeCollection.ProbeMap == nil {
+		t.Errorf("Didn't create Probe Map")
+	}
 
-	if expectedLength != len(probeMap) {
-		t.Errorf("Incorrect number of probes in map expected %v but got %v", expectedLength, len(probeMap))
+}
+
+func TestGetProbesID(t *testing.T) {
+
+	probeCollection := NewProbeCollection()
+	probeCollection.GetProbesFromID(1004942)
+
+	if probeCollection.ProbeMap == nil {
+		t.Errorf("Didn't create Probe Map")
 	}
 
 }

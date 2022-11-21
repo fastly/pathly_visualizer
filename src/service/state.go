@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/asn"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
 	"sync"
 )
 
@@ -15,6 +16,7 @@ import (
 type ApplicationState struct {
 	IpToAsn            asn.IpToAsn
 	ipToAsnRefreshLock sync.RWMutex
+	probeCollection    probe.ProbeCollection
 	// etc...
 }
 
