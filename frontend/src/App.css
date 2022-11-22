@@ -132,6 +132,10 @@ input:checked+.slider:before {
   font-weight: bold;
 }
 
+.react-flow__node.group {
+  background-color: rgba(174, 174, 174, 0.2);
+}
+
 #confirmPopup {
   margin: auto;
   background: rgb(255, 255, 255);
