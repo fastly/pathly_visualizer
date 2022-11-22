@@ -41,8 +41,8 @@
   margin: 2%;
 }
 
-label{
-  display:block;
+label {
+  display: block;
 }
 
 .switch {
@@ -54,7 +54,7 @@ label{
   margin-right: 10px;
 }
 
-.switch input { 
+.switch input {
   opacity: 0;
   width: 0;
   height: 0;
@@ -84,15 +84,15 @@ label{
   transition: .4s;
 }
 
-input:checked + .slider {
+input:checked+.slider {
   background-color: #FCA119;
 }
 
-input:focus + .slider {
+input:focus+.slider {
   box-shadow: 0 0 1px #FCA119;
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
   -webkit-transform: translateX(26px);
   -ms-transform: translateX(26px);
   transform: translateX(26px);
@@ -115,7 +115,7 @@ input:checked + .slider:before {
 
 /* GRAPH */
 
-#graphArea{
+#graphArea {
   position: absolute;
   right: 10%;
   top: 20%;
@@ -131,6 +131,22 @@ input:checked + .slider:before {
   font-size: 10px;
   font-weight: bold;
 }
+
+#confirmPopup {
+  margin: auto;
+  background: rgb(255, 255, 255);
+  width: 50%;
+  padding: 5px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+#confirmButton {
+  /* background: #e4fff4; */
+  border-radius: 5px;
+}
+
 
 .App-logo {
   height: 40vmin;
@@ -162,7 +178,78 @@ input:checked + .slider:before {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
+  }
+}
+
+
+/* POP UP STUFF */
+
+/* Popup container - can be anything you want */
+.popup {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* The actual popup */
+.popup .popuptext {
+  visibility: hidden;
+  width: 130px;
+  background-color: #555;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 75%;
+  margin-left: -80px;
+}
+
+/* Popup arrow */
+.popup .popuptext::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #555 transparent transparent transparent;
+}
+
+/* Toggle this class - hide and show the popup */
+.popup .show {
+  visibility: visible;
+  -webkit-animation: fadeIn 1s;
+  animation: fadeIn 1s;
+}
+
+/* Add animation (fade in the popup) */
+@-webkit-keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
