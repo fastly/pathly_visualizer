@@ -7,6 +7,7 @@ import {tData} from './components/testTrcrt'
 import {tDataFull} from './components/testTrcrtFull'
 
 function App() {
+  //comment here to test github ci on push
 
   // list of graphs being rendered --> start with state []
   const [graphList, setGraphList] = useState([])
