@@ -200,6 +200,8 @@ function Graph(props) {
                 // need to change id based on how many timeouts since known
                 let edgeSource = props.response.edges[i].start.ip
                 let edgeTarget = props.response.edges[i].end.ip
+                let labelWeight = (props.response.edges[i].outboundCoverage * 100).toString() + "%"
+                let lineWeight = (props.response.edges[i].outboundCoverage).toString() + "%"
                 if(props.response.edges[i].start.timeSinceKnown > 0) {
                     edgeSource = edgeSource + "-" + props.response.edges[i].start.timeSinceKnown
                 }
@@ -211,7 +213,8 @@ function Graph(props) {
                         id: edgeSource + "-" + edgeTarget,
                         source: edgeSource,
                         target: edgeTarget,
-                        // Add more down here about line weight, etc.
+                        label: labelWeight,
+                        style: {strokeWidth: lineWeight}
                     }
                 )
             }
@@ -404,18 +407,40 @@ function Graph(props) {
 
     //get raw traceroute data from button onclick
     const getRaw = () => {
-        const xhr = new XMLHttpRequest
-        xhr.open("POST", "http://localhost:8080/api/traceroute/download", true)
-        xhr.setRequestHeader("Content-Type", "application/json")
-        // what happens when response is received
-        xhr.onreadystatechange = () => {
-            if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-                console.log(xhr.response)
-                // TODO download attachment
-            }
+
+        let ipSplit = props.form.destinationIp.split(" / ")
+        const ipv4Form = {
+            probeId: parseInt(props.form.probeId),
+            destinationIp: ipSplit[0]
+        }
+        const ipv6Form = {
+            probeId: parseInt(props.form.probeId),
+            destinationIp: ipSplit[1]
         }
 
-        xhr.send(JSON.stringify(props.form))
+        const sendingObjs = [ipv4Form, ipv6Form]
+
+        const xhr = new XMLHttpRequest();
+
+        (function loop(i, length) {
+            if(i >= length){
+                return
+            }
+
+            xhr.open("POST", "http://localhost:8080/api/traceroute/raw", true)
+            xhr.setRequestHeader("Content-Type", "application/json")
+            // what happens when response is received
+            xhr.onreadystatechange = () => {
+                if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                    console.log(xhr.response)
+                    // TODO download attachment
+                    loop(i+1, length)
+                }
+            }
+    
+            console.log(JSON.stringify(sendingObjs[i]))
+            xhr.send(JSON.stringify(sendingObjs[i]))
+        })(0, sendingObjs.length)
     }
 
     return (

@@ -7,7 +7,6 @@ import {tData} from './components/testTrcrt'
 import {tDataFull} from './components/testTrcrtFull'
 
 function App() {
-  //comment here to test github ci on push
 
   // list of graphs being rendered --> start with state []
   const [graphList, setGraphList] = useState([])
@@ -108,12 +107,12 @@ function App() {
           <label for="dst">Destination IP</label>
           <select id="destIP" name="destinationIp" placeholder="Destination IP" required>
           <option hidden> Select IP Address</option>
-            <optgroup label="k-root">
+            {/* <optgroup label="k-root">
               <option value="193.0.14.129 / 2001:7fd::1">193.0.14.129 / 2001:7fd::1</option>
             </optgroup>
             <optgroup label="b-root">
               <option value="199.9.14.201 / 2001:500:200::b">199.9.14.201 / 2001:500:200::b</option>
-            </optgroup>
+            </optgroup> */}
             <optgroup label="fastly anycast">
               <option value="151.101.0.1 / 2a04:4e42::1">151.101.0.1 / 2a04:4e42::1</option>
             </optgroup>
