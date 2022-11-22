@@ -2,6 +2,7 @@ package rest_api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/service"
 	"net/http"
 )
 
@@ -22,7 +23,27 @@ func (state DataRoute) StartTrackingMeasurement(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, "")
+	var err error
+	if request.StartLiveCollection {
+		err = state.EnableLiveMeasurementCollection(request.AtlasMeasurementId)
+	}
+
+	if request.LoadHistory && err == nil {
+		err = state.CollectMeasurementHistory(request.AtlasMeasurementId)
+	}
+
+	if err != nil {
+		if err == service.ErrMeasurementDoesNotExist {
+			ctx.String(http.StatusBadRequest, "Specified measurement ID does not exist")
+		} else {
+			ctx.Status(http.StatusInternalServerError)
+			_ = ctx.Error(err)
+		}
+
+		return
+	}
+
+	ctx.Status(http.StatusOK)
 }
 
 func (state DataRoute) StopTrackingMeasurement(ctx *gin.Context) {
@@ -31,7 +52,24 @@ func (state DataRoute) StopTrackingMeasurement(ctx *gin.Context) {
 		DropStoredData     bool `json:"dropStoredData"`
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"msg": "world"})
+	request, ok := readJsonRequestBody[Request](ctx, 512)
+	if !ok {
+		return
+	}
+
+	if err := state.DisableLiveMeasurementCollection(request.AtlasMeasurementId); err != nil {
+		if err != service.ErrMeasurementDoesNotExist {
+			ctx.Status(http.StatusInternalServerError)
+			_ = ctx.Error(err)
+			return
+		}
+	}
+
+	if request.DropStoredData {
+		state.DropMeasurementData(request.AtlasMeasurementId)
+	}
+
+	ctx.Status(http.StatusOK)
 }
 
 func (state DataRoute) ListTrackedMeasurement(ctx *gin.Context) {

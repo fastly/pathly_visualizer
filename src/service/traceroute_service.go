@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"github.com/DNS-OARC/ripeatlas/measurement"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/ripe_atlas"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
@@ -58,4 +59,28 @@ func (service TracerouteDataService) Run(state *ApplicationState) (err error) {
 
 	service.handleIncomingMessages(state, resultChannel)
 	return nil
+}
+
+var (
+	ErrMeasurementDoesNotExist = errors.New("specified measurement ID does not exist")
+)
+
+func (state *ApplicationState) CollectMeasurementHistory(measurement int) error {
+	return nil
+}
+
+func (state *ApplicationState) EnableLiveMeasurementCollection(measurement int) error {
+	return nil
+}
+
+func (state *ApplicationState) DisableLiveMeasurementCollection(measurement int) error {
+	return nil
+}
+
+func (state *ApplicationState) StopCollectMeasurement(measurement int) error {
+	return nil
+}
+
+func (state *ApplicationState) DropMeasurementData(measurement int) {
+
 }
