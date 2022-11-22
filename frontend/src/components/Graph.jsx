@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import Popup from 'reactjs-popup';
 import ReactFlow, {
     addEdge,
     MiniMap,
@@ -8,10 +9,11 @@ import ReactFlow, {
     useEdgesState,
     useReactFlow,
     ReactFlowProvider,
-  } from 'reactflow';
+} from 'reactflow';
 import dagre from 'dagre'
 //below nodes and edges used for testing purposes
 import { nodes as initialNodes, edges as initialEdges } from './testElements';
+import { Typography, Popover } from "@material-ui/core";
 
 import 'reactflow/dist/style.css';
 
@@ -24,13 +26,13 @@ const nodeWidth = 172;
 const nodeHeight = 36;
 
 //default position for all nodes --> changed for nodes later in getLayout
-const position = {x: 0, y: 0}
+const position = { x: 0, y: 0 }
 
 //default flowkey --> used for storing flow data locally later
 const flowKey = 'example-flow';
 
 function Graph(props) {
-        
+
     //define here not globally --> avoid rerenders adding multiple of same element into array
     let responseNodes = []
     let responseEdges = []
@@ -363,46 +365,57 @@ function Graph(props) {
     // this could also be done with a custom edge for example
     const edgesWithUpdatedTypes = edges.map((edge) => {
         if (edge.sourceHandle) {
-        const edgeType = nodes.find((node) => node.type === 'custom').data.selects[edge.sourceHandle];
-        edge.type = edgeType;
+            const edgeType = nodes.find((node) => node.type === 'custom').data.selects[edge.sourceHandle];
+            edge.type = edgeType;
         }
 
         return edge;
     });
 
+    const [anchorEl, setAnchorEl] = React.useState(null);
+    const [test, setTest] = React.useState("test");
+
     //on node click --> create popup w/ information
     const onNodeClick = (event, node) => {
+        console.log("click", node);
+        setAnchorEl(event.currentTarget);
+        setTest(JSON.stringify(node.data));
         console.log(node.data)
-        // TODO create popup
+        console.log(node.selected)
+      
+        
+        return node.data
     }
-    
+
+
     const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
     //saves current graph state to be restored later
     const onSave = useCallback(() => {
         if (rfInstance) {
-          const flow = rfInstance.toObject();
-          // save flow data in local storage to be used later
-          localStorage.setItem(flowKey, JSON.stringify(flow));
+            const flow = rfInstance.toObject();
+            // save flow data in local storage to be used later
+            localStorage.setItem(flowKey, JSON.stringify(flow));
         }
-      }, [rfInstance]);
-    
+    }, [rfInstance]);
+
     //restores saved graph state 
     const onRestore = useCallback(() => {
-    const restoreFlow = async () => {
-        //parses flow data from local storage
-        const flow = JSON.parse(localStorage.getItem(flowKey));
+        const restoreFlow = async () => {
+            //parses flow data from local storage
+            const flow = JSON.parse(localStorage.getItem(flowKey));
 
-        //sets nodes, edges, and viewport using saved flow data
-        if (flow) {
-            const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-            setNodes(flow.nodes || []);
-            setEdges(flow.edges || []);
-            setViewport({ x, y, zoom });
-        }
-    };
+            //sets nodes, edges, and viewport using saved flow data
+            if (flow) {
+                const { x = 0, y = 0, zoom = 1 } = flow.viewport;
+                setNodes(flow.nodes || []);
+                setEdges(flow.edges || []);
+                setViewport({ x, y, zoom });
+            }
 
-    restoreFlow();
+        };
+
+        restoreFlow();
     }, [setNodes, setViewport]);
 
     //get raw traceroute data from button onclick
@@ -443,6 +456,35 @@ function Graph(props) {
         })(0, sendingObjs.length)
     }
 
+    // // pass smth in to determine download, save, or reset
+    // const handlePopupOnclick = () => {
+
+    // }
+    const myFunction = () => {
+        var popup = document.getElementById("myPopup");
+        popup.classList.toggle("show");
+    }
+
+    const nodeTypes = {
+        selectorNode: Node
+    };
+
+
+    // const onElementClick = (event, element) => {
+    //     setAnchorEl(event.currentTarget);
+    //     setTest(JSON.stringify(element.data));
+    //     setTest(element.data);
+    //     console.log(element.data)
+    //     console.log(element.selected)
+    // };
+
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
+
+    const open = Boolean(anchorEl);
+    const id = open ? "simple-popover" : undefined;
+
     return (
         <div style={{height: 600, width: 600, marginBottom: 100}}>
             <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
@@ -452,35 +494,82 @@ function Graph(props) {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                nodesDraggable={false}
                 onNodeClick={onNodeClick}
                 onInit={setRfInstance}
                 fitView
                 attributionPosition="top-right"
             >
-                <Controls/>
-                <MiniMap 
+
+                <Controls />
+                <MiniMap
                     nodeColor={(n) => {
-                        if(n.type === "input") return "#E98F91"
-                        else if(n.type === "output") return "#B1E6D6"
+                        if (n.type === "input") return "#E98F91"
+                        else if (n.type === "output") return "#B1E6D6"
                         else return "#5DCFE7"
                     }}
                     nodeStrokeWidth={3} zoomable pannable />
-                <Background color="#a6b0b4" gap={16} style={{backgroundColor: "#E8EEF1"}}/>
+                <Background color="#a6b0b4" gap={16} style={{ backgroundColor: "#E8EEF1" }} />
             </ReactFlow>
+
             <div className="controls">
-                <button onClick={getRaw}>Raw Data</button>
-                <button onClick={onSave}>Save</button>
-                <button onClick={onRestore}>Restore</button>
+                <Popup trigger={<button> Download Raw Data </button>}
+                    position="top center">
+                    <div id="confirmPopup">Download as .txt file?<br></br>
+                        <button onClick={getRaw}>Confirm</button></div>
+                </Popup>
+
+                <Popup trigger={<button> Save View </button>}
+                    position="top center">
+                    <div id="confirmPopup">Save current view?<br></br>
+                        <button onClick={onSave}>Confirm</button></div>
+                </Popup>
+
+                <Popup trigger={<button> Restore </button>}
+                    position="top center">
+                    <div id="confirmPopup">Reset to saved view?<br></br>
+                        <button id="confirmButton" onClick={onRestore}>Confirm</button></div>
+                </Popup>
+
+                {/* <div class="popup"> <button onClick={myFunction}> Tester Node </button>
+                    <span class="popuptext" id="myPopup">
+                        <div class="popup" id="confirmPopup">Information about Node<br></br>
+                    </div></span>
+                </div> */}
+
+                <Popover
+                    id={id}
+                    open={open}
+                    anchorEl={anchorEl}
+                    onClose={handleClose}
+                    anchorOrigin={{
+                        vertical: "bottom",
+                        horizontal: "center"
+                    }}
+                    transformOrigin={{
+                        vertical: "top",
+                        horizontal: "center"
+                    }}
+                >
+                    <Typography id="typography">{test}</Typography>
+                </Popover>
+
+
             </div>
-            </div>
+
+            {/* don't delete! experimenting to get multiple pop ups to stay on screen 
+            <div class="popup" onClick={myFunction}>Pretend NODE
+                <span class="popuptext" id="myPopup">Insert Node Info</span>
+            </div> */}
+        </div >
     )
 }
 
 // need this to utilize useReactFlow hook 
 function GraphWithProvider(props) {
-    return(
+    return (
         <ReactFlowProvider>
-            <Graph {...props}/>
+            <Graph {...props} />
         </ReactFlowProvider>
     )
 }
