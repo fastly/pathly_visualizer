@@ -14,9 +14,10 @@ import (
 // other services will do a mix of reading and writing. There should be one concurrency structure in here for each
 // piece of the state that can be used in isolation.
 type ApplicationState struct {
-	IpToAsn            asn.IpToAsn
-	ipToAsnRefreshLock sync.RWMutex
-	probeCollection    probe.ProbeCollection
+	IpToAsn                    asn.IpToAsn
+	ipToAsnRefreshLock         sync.RWMutex
+	ProbeCollection            probe.ProbeCollection
+	probeCollectionRefreshLock sync.RWMutex
 	// etc...
 }
 

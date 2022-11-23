@@ -6,7 +6,7 @@ import (
 
 func TestGetProbes(t *testing.T) {
 
-	probeCollection := NewProbeCollection()
+	probeCollection := MakeProbeCollection()
 	probeCollection.GetProbesFromRipeAtlas()
 
 	if probeCollection.ProbeMap == nil {
@@ -17,7 +17,7 @@ func TestGetProbes(t *testing.T) {
 
 func TestGetProbesID(t *testing.T) {
 
-	probeCollection := NewProbeCollection()
+	probeCollection := MakeProbeCollection()
 	probeCollection.GetProbesFromID(1004942)
 
 	if probeCollection.ProbeMap == nil {

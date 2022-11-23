@@ -10,17 +10,20 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type ProbeCollection struct {
-	ProbeMap map[int]*Probe
+	ProbeMap    map[int]*Probe
+	LastRefresh time.Time
 }
 
 const ProbePage string = "https://atlas.ripe.net/api/v2/probes/?format=json"
 
-func NewProbeCollection() *ProbeCollection {
-	return &ProbeCollection{
-		ProbeMap: make(map[int]*Probe),
+func MakeProbeCollection() ProbeCollection {
+	return ProbeCollection{
+		ProbeMap:    make(map[int]*Probe),
+		LastRefresh: time.Now(), //Unsure if this makes sense but I didn't think this should be nil
 	}
 }
 
@@ -111,6 +114,7 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	go func() {
 		wg.Wait()
 		close(probeChannel)
+		probeCollection.LastRefresh = time.Now()
 	}()
 
 	//Add each probe from the channel and add it to our main list
@@ -155,6 +159,10 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 	}
 	//Return the probe object
 	return probeObj
+}
+
+func (probeCollection *ProbeCollection) GetLastRefresh() time.Time {
+	return probeCollection.LastRefresh
 }
 
 func isProbeValid(probe *request.Probe) bool {
