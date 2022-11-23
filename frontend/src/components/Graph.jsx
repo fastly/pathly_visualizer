@@ -462,7 +462,8 @@ function Graph(props) {
 
     return (
         <div style={{height: 600, width: 600, marginBottom: 100}}>
-            <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
+            {/* <h2>{props.response.probeIp} to {props.form.destinationIp}</h2> */}
+            <h2>{props.response.probeIp} to Destination</h2>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
