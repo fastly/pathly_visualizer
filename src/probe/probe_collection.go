@@ -2,13 +2,13 @@ package probe
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/DNS-OARC/ripeatlas"
 	"github.com/DNS-OARC/ripeatlas/request"
 	"log"
 	"net/http"
 	"net/netip"
 	"runtime"
+	"strconv"
 	"sync"
 )
 
@@ -19,9 +19,9 @@ type ProbeCollection struct {
 const ProbePage string = "https://atlas.ripe.net/api/v2/probes/?format=json"
 
 func NewProbeCollection() *ProbeCollection {
-	var p ProbeCollection
-	p.ProbeMap = make(map[int]*Probe)
-	return &p
+	return &ProbeCollection{
+		ProbeMap: make(map[int]*Probe),
+	}
 }
 
 func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
@@ -34,12 +34,12 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	//Get the total number of pages
 	responseProbe, err := http.Get(ProbePage)
 	if err != nil {
-		log.Fatalf("http.Get(%s): %s", ProbePage, err.Error())
+		log.Printf("http.Get(%s): %s", ProbePage, err.Error())
 	}
 
 	var pageCountResponse probeAPIPage
 	if err = json.NewDecoder(responseProbe.Body).Decode(&pageCountResponse); err != nil {
-		log.Fatalf("Could not get the total number of probes: %v\n", err.Error())
+		log.Printf("Could not get the total number of probes: %v\n", err.Error())
 	}
 	defer responseProbe.Body.Close()
 
@@ -55,9 +55,12 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	// Read Atlas results using REST API
 	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
 
+	//Add the number of workers to the waitgroup
+	wg.Add(runtime.NumCPU())
 	//Create number of go routines equal to number of CPU cores
 	for i := 0; i < runtime.NumCPU(); i++ {
-		wg.Add(1)
+
+		//Each CPU core will handle multiple pages
 		go func(currentCore int) {
 			defer wg.Done()
 			//The starting Page for each CPU core
@@ -80,7 +83,7 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 					"page": int64(page),
 				})
 				if err != nil {
-					log.Fatalf("Could not get probes from Ripe Atlas %v", err.Error())
+					log.Printf("Could not get probes from Ripe Atlas %v", err.Error())
 				}
 
 				//Check for each probe on the page
@@ -128,10 +131,10 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 
 	//Connect to the specific page
 	probes, err := a.Probes(ripeatlas.Params{
-		"pk": fmt.Sprint(probeID),
+		"pk": strconv.Itoa(probeID),
 	})
 	if err != nil {
-		log.Fatalf("Could not get probes id: %v from Ripe Atlas: %v", probeID, err)
+		log.Printf("Could not get probes id: %v from Ripe Atlas: %v", probeID, err)
 	}
 
 	var probeObj *Probe
@@ -148,6 +151,7 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 		}
 		//Add it to our storage
 		probeCollection.ProbeMap[probeObj.Id] = probeObj
+		return probeObj
 	}
 	//Return the probe object
 	return probeObj
@@ -155,7 +159,7 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 
 func isProbeValid(probe *request.Probe) bool {
 	//If we can't parse the probes break
-	if probe.ParseError != nil {
+	if probe.ParseError != nil && probe.Id() != 0 {
 		log.Printf("Error Parsing Probe: %v\n", probe.ParseError)
 		return false
 	}
@@ -174,15 +178,13 @@ func createProbe(probe *request.Probe) (*Probe, error) {
 	var err error
 	//Only parse if we are getting a Ipv4 or Ipv6
 	if probe.AddressV4() != "" {
-		probeAddress4, err = netip.ParseAddr(probe.AddressV4())
-		if err != nil {
+		if probeAddress4, err = netip.ParseAddr(probe.AddressV4()); err != nil {
 			return nil, err
 		}
 	}
 
 	if probe.AddressV6() != "" {
-		probeAddress6, err = netip.ParseAddr(probe.AddressV6())
-		if err != nil {
+		if probeAddress6, err = netip.ParseAddr(probe.AddressV6()); err != nil {
 			return nil, err
 		}
 	}
