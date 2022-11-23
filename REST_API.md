@@ -120,3 +120,36 @@ const Response = {
 }
 ```
 
+## Measurement Tracking
+### Start Tracking Measurement
+`POST /api/measurement/start`
+```js
+const Request = {
+    atlasMeasurementId: int,
+    loadHistory: boolean,
+    startLiveCollection: boolean,
+}
+```
+The `loadHistory` field determines if the server will attempt to fetch historical data for the previous measurement period prior to doing live collection.
+
+### Stop Tracking Measurement
+`POST /api/measurement/stop`
+```js
+const Request = {
+    atlasMeasurementId: int,
+    dropStoredData: boolean,
+}
+```
+### List Measurement
+`GET /api/measurement/list`
+```js
+const Response = [
+    {
+        atlasMeasurementId: int,
+        measurementPeriodStart: UnixTimestamp,
+        measurementPeriodStop: UnixTimestamp,
+        isLoadingHistory: boolean,
+        usesLiveCollection: boolean,
+    }
+]
+```
