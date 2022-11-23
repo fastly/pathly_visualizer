@@ -6,10 +6,14 @@
   border-width: 1px;
   border-radius: 10px;
   width: 400px;
+  height: 320px;
   padding: 5px;
   position: absolute;
-  left: 10%;
-  top: 20%;
+  top: 30%;
+  left: 50%;
+  -ms-transform: translateX(-50%) translateY(-50%);
+  -webkit-transform: translate(-50%,-50%);
+  transform: translate(-50%,-50%);
 }
 
 #submitForm {
@@ -116,9 +120,11 @@ input:checked+.slider:before {
 /* GRAPH */
 
 #graphArea {
+  justify-content: center;
   position: absolute;
-  right: 10%;
-  top: 20%;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%,0%);
 }
 
 .react-flow__node.circle {

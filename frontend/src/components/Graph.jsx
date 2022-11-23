@@ -60,6 +60,7 @@ function Graph(props) {
     
             // clean traceroute data nodes
             if(props.clean){
+                // set node to input node if the ip == starting probe ip
                 if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
                     responseNodes.push(
                         {
@@ -84,6 +85,7 @@ function Graph(props) {
                         }
                     )
                 }
+                //if not starting probe, push as normal node without 'type: input'
                 else{
                     responseNodes.push(
                         {
@@ -108,8 +110,10 @@ function Graph(props) {
                     )
                 }
             }
+
             // full traceroute data nodes
             else{
+                // set node to input node if the ip == starting probe ip --> also need to verify that the amount of timesinceknown is 0
                 if((props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1]) && (props.response.nodes[i].id.timeSinceKnown === 0)) {
                     responseNodes.push(
                         {
@@ -125,7 +129,7 @@ function Graph(props) {
                             },
                             className: 'circle',
                             style: {
-                                background: '#E98F91',
+                                background: '#B1E6D6',
                             },
                             parentNode: asnString,
                             extent: 'parent',
@@ -134,14 +138,18 @@ function Graph(props) {
                         }
                     )
                 }
+                //if not starting probe, push as normal node without 'type: input'
                 else{
                     // need to check if there are any timeouts in order to set proper id
                     let nodeId = props.response.nodes[i].id.ip
+                    //change node color and label based on if node is timeout or not
                     let nodeLabel = nodeId
+                    let nodeColor = '#5DCFE7'
                     if(props.response.nodes[i].id.timeSinceKnown > 0){
                         // concat number of timeouts since known onto id
                         nodeId = nodeId + "-" + props.response.nodes[i].id.timeSinceKnown
                         nodeLabel = "*"
+                        nodeColor = "#E98F91"
                     }
                     responseNodes.push(
                         {
@@ -156,7 +164,7 @@ function Graph(props) {
                             },
                             className: 'circle',
                             style: {
-                                background: '#5DCFE7',
+                                background: nodeColor,
                             },
                             parentNode: asnString,
                             extent: 'parent',
@@ -166,6 +174,7 @@ function Graph(props) {
                     )
                 }
             }
+            //push asn nodes onto node arr --> make sure to only push one of each asn
             if(!asnNodes.includes(props.response.nodes[i].asn) && props.response.nodes[i].asn !== undefined){
                 responseNodes.push(
                     {
@@ -202,8 +211,10 @@ function Graph(props) {
                 // need to change id based on how many timeouts since known
                 let edgeSource = props.response.edges[i].start.ip
                 let edgeTarget = props.response.edges[i].end.ip
+                // get line weight dependent on the amount of outbound coverage coming through that edge
                 let labelWeight = (props.response.edges[i].outboundCoverage * 100).toString() + "%"
                 let lineWeight = (props.response.edges[i].outboundCoverage).toString() + "%"
+                // specify source and target ids, id will be edgeIp + timesinceknown (if timesinceknown > 0)
                 if(props.response.edges[i].start.timeSinceKnown > 0) {
                     edgeSource = edgeSource + "-" + props.response.edges[i].start.timeSinceKnown
                 }
@@ -216,12 +227,14 @@ function Graph(props) {
                         source: edgeSource,
                         target: edgeTarget,
                         label: labelWeight,
-                        style: {strokeWidth: lineWeight}
+                        style: {strokeWidth: lineWeight},
+                        zIndex: 1,
                     }
                 )
             }
         }
 
+        // auto layout function using dagre layout algorithm
         const getLayout = (nodes, edges) => {
             //set default layout to "left to right"
             dagreGraph.setGraph({ rankdir: "LR" });
@@ -235,29 +248,38 @@ function Graph(props) {
             })
         
             dagre.layout(dagreGraph)
-        
-            // layout positioning
-            // sets arrow coming out of source from right and into target from left
-            // sets position of each node
     
+            //used for determining asn positioning 
             let asnPosMap = new Map()
+            //used for determining size of asn boxes
             let asnSizeMap = new Map()
             let asnGroups = []
     
+            //loop through each node
             nodes.forEach((node) => {
                 const nodeWithPosition = dagreGraph.node(node.id)
                 node.targetPosition = "left"
                 node.sourcePosition = "right"
                 
+                //check if node is asn, if not, follow steps:
+                // 1) set node position using dagre algorithm
+                // 2) check if the asn is undefined, if not, set the asn position in the asnPosMap equal to the position from step 1
+                // 3) check if asn is in the posMap, if so, verify that the node is not further outwards (left/up) than the specified asn position
+                //      --> if so, set asn position to position of more outwards node
+                // 4) set node position to it's current position minus the position of the asn. Nodes in this library are positioned respectively
+                //      --> within their specified groups so the positions need to be shrunk down to fit inside the asns
                 if(node.data.type !== "asn"){
+                    // Step 1
                     node.position = {
                         x: nodeWithPosition.x - nodeWidth / 2,
                         y: nodeWithPosition.y - nodeHeight / 2,
                     }
+                    // Step 2
                     if(node.data.asn !== undefined) {
                         if(!asnPosMap.has(node.data.asn)){
                             asnPosMap.set(node.data.asn, node.position)
                         }
+                        // Step 3
                         else if(asnPosMap.get(node.data.asn).y > node.position.y){
                             asnPosMap.set(node.data.asn, {
                                 x: asnPosMap.get(node.data.asn).x,
@@ -270,6 +292,7 @@ function Graph(props) {
                                 y: asnPosMap.get(node.data.asn).y,
                             })
                         }
+                        // Step 4
                         node.position = {
                             x: node.position.x - asnPosMap.get(node.data.asn).x,
                             y: node.position.y - asnPosMap.get(node.data.asn).y,
@@ -283,10 +306,13 @@ function Graph(props) {
                             highHeight: node.position.y + nodeHeight,
                         })
                     }
+                    // Step 5
+                    // Need to set asn position by finding the most north, east, south, and westward nodes
                     else{
                         let widthPlusPos = node.position.x + nodeWidth
                         let heightPlusPos = node.position.y + nodeHeight
                         let nodeAsn = asnSizeMap.get(node.data.asn)
+                        // westwards
                         if(nodeAsn.lowWidth > widthPlusPos){
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: widthPlusPos,
@@ -295,6 +321,7 @@ function Graph(props) {
                                 highHeight: nodeAsn.highHeight,
                             })
                         }
+                        // eastwards
                         else if(nodeAsn.highWidth < widthPlusPos){
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: nodeAsn.lowWidth,
@@ -303,6 +330,7 @@ function Graph(props) {
                                 highHeight: nodeAsn.highHeight,
                             })
                         }
+                        // northwards
                         else if(nodeAsn.lowHeight > heightPlusPos){
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: nodeAsn.lowWidth,
@@ -311,6 +339,7 @@ function Graph(props) {
                                 highHeight: nodeAsn.highHeight,
                             })
                         }
+                        // southwards
                         else if(nodeAsn.highHeight < heightPlusPos) {
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: nodeAsn.lowWidth,
@@ -328,6 +357,7 @@ function Graph(props) {
                 return node
             })
     
+            // set asn positions in auto layout using asnPosMap and size using asnSizeMap
             asnGroups.forEach((node) => {
                 node.targetPosition = "left"
                 node.sourcePosition = "right"
@@ -352,9 +382,11 @@ function Graph(props) {
         let layout = getLayout(responseNodes, responseEdges)
         layoutedNodes = layout.nodes
         layoutedEdges = layout.edges
+    // Just a reminder down here that everything in constructNodesEdges is within this function to avoid react rerenders which slow down the webpage
     }, [])
 
     // need these for graph props later
+    // use layout nodes and edges from auto layout function
     const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
     const [rfInstance, setRfInstance] = useState(null);
@@ -377,16 +409,53 @@ function Graph(props) {
 
     //on node click --> create popup w/ information
     const onNodeClick = (event, node) => {
-        console.log("click", node);
         setAnchorEl(event.currentTarget);
         setTest(JSON.stringify(node.data));
-        console.log(node.data)
-        console.log(node.selected)
       
-        
         return node.data
     }
 
+    // need to reset all edges in order to change color of edge
+    const onEdgeClick = (event, edge) => {
+        let newEdges = []
+        // loop through current edges
+        for(let i = 0; i < edges.length; i++) {
+            // need to check here if the edge is already highlighted, if so, get rid of highlight on click
+            let edgeStyle = {stroke: '#FCA119', strokeWidth: edge.style.strokeWidth}
+            if(edge.style.stroke === '#FCA119'){
+                edgeStyle = {strokeWidth: edge.style.strokeWidth}
+            }
+            // if the current edge id is the same as the edge id in the loop, then set color of edge id to highlighted color
+            if(edges[i].id === edge.id){
+                newEdges.push(
+                    {
+                        id: edge.id,
+                        label: edge.label,
+                        selected: edge.selected,
+                        source: edge.source,
+                        style: edgeStyle,
+                        target: edge.target,
+                        zIndex: 1,
+                    }
+                )
+            }
+            // don't change any other edge properties
+            else{
+                newEdges.push(
+                    {
+                        id: edges[i].id,
+                        label: edges[i].label,
+                        selected: edges[i].selected,
+                        source: edges[i].source,
+                        style: edges[i].style,
+                        target: edges[i].target,
+                        zIndex: 1,  
+                    }
+                )
+            }
+        }
+        setEdges(newEdges)
+    }
 
     const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
@@ -421,6 +490,7 @@ function Graph(props) {
     //get raw traceroute data from button onclick
     const getRaw = () => {
 
+        // split form object into two (like before) in order to make two requests for ipv4 and 6
         let ipSplit = props.form.destinationIp.split(" / ")
         const ipv4Form = {
             probeId: parseInt(props.form.probeId),
@@ -435,6 +505,7 @@ function Graph(props) {
 
         const xhr = new XMLHttpRequest();
 
+        // loop through to send requests for both ipv4 and 6
         (function loop(i, length) {
             if(i >= length){
                 return
@@ -486,7 +557,7 @@ function Graph(props) {
     const id = open ? "simple-popover" : undefined;
 
     return (
-        <div style={{height: 600, width: 600, marginBottom: 100}}>
+        <div style={{height: 700, width: 1200, marginBottom: 100}}>
             <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
             <ReactFlow
                 nodes={nodes}
@@ -496,6 +567,7 @@ function Graph(props) {
                 onConnect={onConnect}
                 nodesDraggable={false}
                 onNodeClick={onNodeClick}
+                onEdgeClick={onEdgeClick}
                 onInit={setRfInstance}
                 fitView
                 attributionPosition="top-right"
@@ -504,8 +576,10 @@ function Graph(props) {
                 <Controls />
                 <MiniMap
                     nodeColor={(n) => {
-                        if (n.type === "input") return "#E98F91"
+                        if (n.data.label === "*") return "#E98F91"
+                        if (n.type === "input") return "#B1E6D6"
                         else if (n.type === "output") return "#B1E6D6"
+                        else if (n.data.type === "asn") return "#aeaeae33"
                         else return "#5DCFE7"
                     }}
                     nodeStrokeWidth={3} zoomable pannable />

@@ -72,6 +72,7 @@ function App() {
             combProbeIp = combProbeIp + " / " + res.probeIp
           }
 
+          // need to send combined responses to graph in order to render both ipv4 and 6 on same graph
           if(i === 1){
             let combinedResponse = {
               probeIp: combProbeIp,
@@ -128,7 +129,6 @@ function App() {
             </label>
             <p>Clean Data</p>
           </div>
-          <br></br>
           <button id="submitForm" type="submit">Visualize</button>
         </form>
       </div>
