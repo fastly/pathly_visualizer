@@ -121,14 +121,14 @@ func updateCacheFile(measurementID int, cacheFile string) error {
 	writer := bufio.NewWriter(file)
 	defer util.CloseAndLogErrors("Failed to close cache file writer", file)
 
-	url := fmt.Sprintf("%s/%d/results?format=json", measurementsUrl, measurementID)
+	url := fmt.Sprintf("%s/%d/results?format=txt", measurementsUrl, measurementID)
 	res, err := http.Get(url)
 	if err != nil {
 		return err
 	}
 
 	defer util.CloseAndLogErrors("Failed to close measurement request", res.Body)
-	if _, err := io.Copy(util.NewNdjsonConverter(writer), res.Body); err != nil {
+	if _, err := io.Copy(writer, res.Body); err != nil {
 		return err
 	}
 
