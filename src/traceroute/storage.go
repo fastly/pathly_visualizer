@@ -54,7 +54,7 @@ func getStatisticsPeriod() time.Duration {
 			return
 		}
 
-		period, err := strconv.ParseUint(value, 0, 64)
+		period, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			log.Printf("Expected unsigned int value for  STATISTICS_PERIOD, but found %q. "+
 				"Using default statistics period of 3 days\n", value)

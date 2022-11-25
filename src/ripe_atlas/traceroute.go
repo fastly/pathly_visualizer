@@ -101,7 +101,7 @@ func getCacheDuration() time.Duration {
 		return DefaultCacheDuration
 	}
 
-	seconds, err := strconv.ParseUint(value, 0, 64)
+	seconds, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
 		log.Printf("Failed to read CACHE-DURATION value of %q: %v\n", value, err)
 		return DefaultCacheDuration
@@ -127,7 +127,7 @@ func updateCacheFile(measurementID int, cacheFile string) error {
 		return err
 	}
 
-	defer util.CloseAndLogErrors("Failed to close measurement request", res.Body)
+	defer util.CloseAndLogErrors("Failed to close request for measurement results", res.Body)
 	if _, err := io.Copy(writer, res.Body); err != nil {
 		return err
 	}
