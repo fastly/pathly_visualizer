@@ -49,8 +49,10 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	totalPages := (pageCountResponse.Count + 99) / 100
 	pagesPerCPU := totalPages / runtime.NumCPU()
 
-	//Create a waitgroupint
+	//Create a wait group
 	var wg sync.WaitGroup
+
+	var once sync.Once
 
 	//Create channel that each routine will send a probe to
 	probeChannel := make(chan *Probe, 64)
@@ -113,8 +115,10 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	//Wait until all the routines are done and close the channel
 	go func() {
 		wg.Wait()
-		close(probeChannel)
-		probeCollection.LastRefresh = time.Now()
+		once.Do(func() {
+			close(probeChannel)
+			probeCollection.LastRefresh = time.Now()
+		})
 	}()
 
 	//Add each probe from the channel and add it to our main list
