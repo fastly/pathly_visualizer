@@ -44,6 +44,12 @@ loop:
 				break loop
 			}
 
+			//Check if the measurement actually exists
+			if msg == nil {
+				log.Println("Measurement was nil?")
+				continue
+			}
+
 			// Increment the progress counter so it knows how many messages have been received when calling the periodic
 			// function.
 			progressCounter.Increment()

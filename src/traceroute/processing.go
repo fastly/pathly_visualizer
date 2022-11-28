@@ -10,11 +10,6 @@ import (
 )
 
 func (tracerouteData *TracerouteData) AppendMeasurement(measurement *measurement.Result) {
-	//Check if the measurement actually exists
-	if measurement == nil {
-		log.Println("Measurement was nil?")
-		return
-	}
 
 	//Get the netip from the destination of the measurement
 	destination, err := netip.ParseAddr(measurement.DstName())
@@ -54,7 +49,7 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 	// Apply updates to edges
 	timestamp := time.Unix(int64(measurement.Timestamp()), 0)
 	routeData.addNodesToGraph(probeIp, validReplies, timestamp)
-	routeData.addHopsToGraph(internalFormat, timestamp)
+	routeData.addEdgesToGraph(internalFormat, timestamp)
 
 	probeNode := routeData.getOrCreateNode(NodeId{
 		Ip:                 probeIp,
@@ -166,7 +161,7 @@ func (routeData *RouteData) updateGraphNode(id NodeId, reply *traceroute.Reply, 
 	}
 }
 
-func (routeData *RouteData) addHopsToGraph(res [][]NodeId, timestamp time.Time) {
+func (routeData *RouteData) addEdgesToGraph(res [][]NodeId, timestamp time.Time) {
 	//The starting layer is the source probe or considered as Hop 0
 	previousHop := res[0]
 
@@ -279,7 +274,7 @@ func checkReplyForErrors(reply *traceroute.Reply) bool {
 	}
 
 	// Check that reply IP is a valid address
-	if _, err := netip.ParseAddr(reply.From()); reply.X() != "*" && err != nil {
+	if _, err := netip.ParseAddr(reply.From()); err != nil {
 		return true
 	}
 
