@@ -87,31 +87,18 @@ func uniqueNodeIdsForLayer(replies []*traceroute.Reply, prevLayerCount int) int 
 	return layerNodeCount
 }
 
-type sortableList []NodeId
-
-func (list sortableList) Len() int {
-	return len(list)
-}
-func (list sortableList) Less(i, j int) bool {
-	if list[i].Ip == list[j].Ip {
-		return list[i].TimeoutsSinceKnown < list[j].TimeoutsSinceKnown
-	}
-
-	return list[i].Ip.Less(list[j].Ip)
-}
-
-func (list sortableList) Swap(i, j int) {
-	tmp := list[i]
-	list[i] = list[j]
-	list[j] = tmp
-}
-
 func dedupNodeIds(list []NodeId) []NodeId {
 	if len(list) == 0 {
 		return list
 	}
 
-	sort.Sort(sortableList(list))
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Ip == list[j].Ip {
+			return list[i].TimeoutsSinceKnown < list[j].TimeoutsSinceKnown
+		}
+
+		return list[i].Ip.Less(list[j].Ip)
+	})
 
 	i := 1
 	for j := 1; j < len(list); j++ {
