@@ -23,6 +23,8 @@ const stopParam = "stop"
 const typeParam = "type"
 const msmParam = "msm"
 
+const DefaultCacheDuration = 12 * time.Hour
+
 func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]measurement.Result, error) {
 	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
 	channel, err := a.MeasurementResults(ripeatlas.Params{pkParam: measurementID, startParam: startTime, stopParam: endTime})
@@ -55,6 +57,11 @@ func GetStreamingTraceRouteData(measurementID int) (<-chan *measurement.Result, 
 }
 
 func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
 	byteChannel, outputChannel := util.MakeWorkGroup(func(bytes []byte, output chan *measurement.Result) {
 		var out *measurement.Result
 		if err := json.Unmarshal(bytes, &out); err != nil {
@@ -64,35 +71,29 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 		}
 	})
 
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		defer util.CloseAndLogErrors("Failed to close file after reading traceroute data", file)
-		bufferedRead := bufio.NewReader(file)
-		scanner := bufio.NewScanner(bufferedRead)
-
-		// Break input file into lines and distribute them to workers
-		for scanner.Scan() {
-			line := scanner.Bytes()
-			buffer := make([]byte, len(line), len(line))
-			copy(buffer, line)
-			byteChannel <- buffer
-		}
-
-		if err := scanner.Err(); err != nil {
-			log.Println("Got error while reading traceroute data from file:", err)
-		}
-
-		close(byteChannel)
-	}()
+	go breakFileIntoLines(file, byteChannel)
 
 	return outputChannel, nil
 }
 
-const DefaultCacheDuration = 12 * time.Hour
+func breakFileIntoLines(file *os.File, lineBytesOutput chan []byte) {
+	defer util.CloseAndLogErrors("Failed to close file after reading traceroute data", file)
+	defer close(lineBytesOutput)
+	bufferedRead := bufio.NewReader(file)
+	scanner := bufio.NewScanner(bufferedRead)
+
+	// Break input file into lines and distribute them to workers
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		buffer := make([]byte, len(line), len(line))
+		copy(buffer, line)
+		lineBytesOutput <- buffer
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Println("Got error while reading traceroute data from file:", err)
+	}
+}
 
 func getCacheDuration() time.Duration {
 	value, ok := os.LookupEnv("CACHE-DURATION")
