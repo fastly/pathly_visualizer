@@ -11,29 +11,31 @@ import ReactFlow, {
     ReactFlowProvider,
 } from 'reactflow';
 import dagre from 'dagre'
-//below nodes and edges used for testing purposes
-import { nodes as initialNodes, edges as initialEdges } from './testElements';
 import { Typography, Popover } from "@material-ui/core";
 
+// below nodes and edges used for testing purposes
+import { nodes as initialNodes, edges as initialEdges } from './testElements';
+
+// linking stylesheet
 import 'reactflow/dist/style.css';
 
-//using dagre library to auto format graph --> no need to position anything
+// using dagre library to auto format graph --> no need to position anything
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-//default node width and height
+// default node width and height
 const nodeWidth = 172;
 const nodeHeight = 36;
 
-//default position for all nodes --> changed for nodes later in getLayout
+// default position for all nodes --> changed for nodes later in getLayout
 const position = { x: 0, y: 0 }
 
-//default flowkey --> used for storing flow data locally later
+// default flowkey --> used for storing flow data locally later
 const flowKey = 'example-flow';
 
 function Graph(props) {
 
-    //define here not globally --> avoid rerenders adding multiple of same element into array
+    // define here not globally --> avoid rerenders adding multiple of same element into array
     let responseNodes = []
     let responseEdges = []
 
@@ -43,7 +45,7 @@ function Graph(props) {
     let layoutedNodes
     let layoutedEdges
 
-    //init nodes and edges from passed in props
+    // init nodes and edges from passed in props
     // need to do so in constructNodesEdges to avoid rerenders when nodes are moved in graph
     const constructNodesEdges = React.useMemo(() => {
         // loop through all nodes
@@ -85,7 +87,7 @@ function Graph(props) {
                         }
                     )
                 }
-                //if not starting probe, push as normal node without 'type: input'
+                // if not starting probe, push as normal node without 'type: input'
                 else{
                     responseNodes.push(
                         {
@@ -138,7 +140,7 @@ function Graph(props) {
                         }
                     )
                 }
-                //if not starting probe, push as normal node without 'type: input'
+                // if not starting probe, push as normal node without 'type: input'
                 else{
                     // need to check if there are any timeouts in order to set proper id
                     let nodeId = props.response.nodes[i].id.ip
@@ -174,7 +176,7 @@ function Graph(props) {
                     )
                 }
             }
-            //push asn nodes onto node arr --> make sure to only push one of each asn
+            // push asn nodes onto node arr --> make sure to only push one of each asn
             if(!asnNodes.includes(props.response.nodes[i].asn) && props.response.nodes[i].asn !== undefined){
                 responseNodes.push(
                     {
@@ -193,7 +195,7 @@ function Graph(props) {
             }
         }
 
-        //populate edges using response data
+        // populate edges using response data
         for(let i = 0; i < props.response.edges.length; i++) {
             // clean traceroute data edges
             if(props.clean){
@@ -236,10 +238,10 @@ function Graph(props) {
 
         // auto layout function using dagre layout algorithm
         const getLayout = (nodes, edges) => {
-            //set default layout to "left to right"
+            // set default layout to "left to right"
             dagreGraph.setGraph({ rankdir: "LR" });
         
-            //set nodes and edges in dagre graph
+            // set nodes and edges in dagre graph
             nodes.forEach((node) => {
                 dagreGraph.setNode(node.id, {width: nodeWidth, height: nodeHeight})
             })
@@ -249,19 +251,19 @@ function Graph(props) {
         
             dagre.layout(dagreGraph)
     
-            //used for determining asn positioning 
+            // used for determining asn positioning 
             let asnPosMap = new Map()
             //used for determining size of asn boxes
             let asnSizeMap = new Map()
             let asnGroups = []
     
-            //loop through each node
+            // loop through each node
             nodes.forEach((node) => {
                 const nodeWithPosition = dagreGraph.node(node.id)
                 node.targetPosition = "left"
                 node.sourcePosition = "right"
                 
-                //check if node is asn, if not, follow steps:
+                // check if node is asn, if not, follow steps:
                 // 1) set node position using dagre algorithm
                 // 2) check if the asn is undefined, if not, set the asn position in the asnPosMap equal to the position from step 1
                 // 3) check if asn is in the posMap, if so, verify that the node is not further outwards (left/up) than the specified asn position
@@ -409,9 +411,11 @@ function Graph(props) {
 
     //on node click --> create popup w/ information
     const onNodeClick = (event, node) => {
+        // set anchor element on node click
         setAnchorEl(event.currentTarget);
+        // get node data to display
         setTest(JSON.stringify(node.data));
-      
+ 
         return node.data
     }
 
@@ -459,7 +463,7 @@ function Graph(props) {
 
     const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
-    //saves current graph state to be restored later
+    // saves current graph state to be restored later
     const onSave = useCallback(() => {
         if (rfInstance) {
             const flow = rfInstance.toObject();
@@ -468,7 +472,7 @@ function Graph(props) {
         }
     }, [rfInstance]);
 
-    //restores saved graph state 
+    // restores saved graph state 
     const onRestore = useCallback(() => {
         const restoreFlow = async () => {
             //parses flow data from local storage
@@ -487,7 +491,7 @@ function Graph(props) {
         restoreFlow();
     }, [setNodes, setViewport]);
 
-    //get raw traceroute data from button onclick
+    // get raw traceroute data from button onclick
     const getRaw = () => {
 
         // split form object into two (like before) in order to make two requests for ipv4 and 6
@@ -527,11 +531,11 @@ function Graph(props) {
         })(0, sendingObjs.length)
     }
 
-    // // pass smth in to determine download, save, or reset
-    // const handlePopupOnclick = () => {
-
-    // }
-    const myFunction = () => {
+    // TO-DO pass smth in to determine download, save, or reset
+  
+    // MULTISELECT IN PROGRESS
+    // keep for now, might be possible way to get multiselect on nodes to work
+    const popupTester = () => {
         var popup = document.getElementById("myPopup");
         popup.classList.toggle("show");
     }
@@ -539,15 +543,6 @@ function Graph(props) {
     const nodeTypes = {
         selectorNode: Node
     };
-
-
-    // const onElementClick = (event, element) => {
-    //     setAnchorEl(event.currentTarget);
-    //     setTest(JSON.stringify(element.data));
-    //     setTest(element.data);
-    //     console.log(element.data)
-    //     console.log(element.selected)
-    // };
 
     const handleClose = () => {
         setAnchorEl(null);
@@ -558,7 +553,11 @@ function Graph(props) {
 
     return (
         <div style={{height: 700, width: 1200, marginBottom: 100}}>
+        
+            {/* React Flow window title */}
             <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
+
+            {/* React Flow window component */}
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -576,6 +575,7 @@ function Graph(props) {
                 <Controls />
                 <MiniMap
                     nodeColor={(n) => {
+                        {/* change minimap node color based on node type */}
                         if (n.data.label === "*") return "#E98F91"
                         if (n.type === "input") return "#B1E6D6"
                         else if (n.type === "output") return "#B1E6D6"
@@ -586,31 +586,37 @@ function Graph(props) {
                 <Background color="#a6b0b4" gap={16} style={{ backgroundColor: "#E8EEF1" }} />
             </ReactFlow>
 
+            {/* Buttons for React Flow Window */}
             <div className="controls">
+                
+                {/* controller for Download Raw Data button and popups */}
                 <Popup trigger={<button> Download Raw Data </button>}
                     position="top center">
                     <div id="confirmPopup">Download as .txt file?<br></br>
                         <button onClick={getRaw}>Confirm</button></div>
                 </Popup>
 
+                {/* controller for Save Data button and popups */}
                 <Popup trigger={<button> Save View </button>}
                     position="top center">
                     <div id="confirmPopup">Save current view?<br></br>
                         <button onClick={onSave}>Confirm</button></div>
                 </Popup>
 
+                {/* controller for Restore button and popups */}
                 <Popup trigger={<button> Restore </button>}
                     position="top center">
                     <div id="confirmPopup">Reset to saved view?<br></br>
                         <button id="confirmButton" onClick={onRestore}>Confirm</button></div>
                 </Popup>
 
-                {/* <div class="popup"> <button onClick={myFunction}> Tester Node </button>
+                {/* <div class="popup"> <button onClick={popupTester}> Tester Node </button>
                     <span class="popuptext" id="myPopup">
                         <div class="popup" id="confirmPopup">Information about Node<br></br>
                     </div></span>
                 </div> */}
 
+                {/* component for popups within React Flow window */}
                 <Popover
                     id={id}
                     open={open}
@@ -632,9 +638,10 @@ function Graph(props) {
             </div>
 
             {/* don't delete! experimenting to get multiple pop ups to stay on screen 
-            <div class="popup" onClick={myFunction}>Pretend NODE
+            <div class="popup" onClick={popupTester}>Pretend NODE
                 <span class="popuptext" id="myPopup">Insert Node Info</span>
             </div> */}
+
         </div >
     )
 }
