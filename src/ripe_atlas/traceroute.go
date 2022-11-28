@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 )
 
@@ -95,22 +94,6 @@ func breakFileIntoLines(file *os.File, lineBytesOutput chan []byte) {
 	}
 }
 
-func getCacheDuration() time.Duration {
-	value, ok := os.LookupEnv("CACHE-DURATION")
-
-	if !ok {
-		return DefaultCacheDuration
-	}
-
-	seconds, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		log.Printf("Failed to read CACHE-DURATION value of %q: %v\n", value, err)
-		return DefaultCacheDuration
-	}
-
-	return time.Duration(seconds) * time.Second
-}
-
 const measurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
 
 func updateCacheFile(measurementID int, cacheFile string) error {
@@ -150,7 +133,7 @@ func CachedGetTraceRouteData(measurementID int) (channel <-chan *measurement.Res
 		return
 	}
 
-	cacheDuration := getCacheDuration()
+	cacheDuration := util.GetEnvDuration(util.CacheStoreDuration, DefaultCacheDuration)
 	log.Println("Using cache duration of", cacheDuration)
 
 	if err != nil || stat.ModTime().Add(cacheDuration).Before(time.Now()) {

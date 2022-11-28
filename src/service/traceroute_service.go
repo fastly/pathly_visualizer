@@ -21,7 +21,7 @@ func (TracerouteDataService) Init(state *ApplicationState) (err error) {
 }
 
 func (TracerouteDataService) handleIncomingMessages(state *ApplicationState, channel <-chan *measurement.Result) {
-	logProgress := util.IsEnvFlagSet("LOG_TRACEROUTE_PROGRESS")
+	logProgress := util.IsEnvFlagSet(util.LogTracerouteProgress)
 	// The progress counter is a debugging tool which will periodically call the Periodic function with the number of
 	// times that it has been invoked. This helps show that the program is receiving messages and is not stuck in an
 	// invalid state.
