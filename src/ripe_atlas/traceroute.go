@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const measurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
+
 const pkParam = "pk"
 const startParam = "start"
 const stopParam = "stop"
@@ -61,7 +63,7 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 		return nil, err
 	}
 
-	byteChannel, outputChannel := util.MakeWorkGroup(func(bytes []byte, output chan *measurement.Result) {
+	byteChannel, outputChannel := util.MakeWorkGroup(64, func(bytes []byte, output chan *measurement.Result) {
 		var out *measurement.Result
 		if err := json.Unmarshal(bytes, &out); err != nil {
 			log.Println("Received error while reading input JSON:", err)
@@ -93,8 +95,6 @@ func breakFileIntoLines(file *os.File, lineBytesOutput chan []byte) {
 		log.Println("Got error while reading traceroute data from file:", err)
 	}
 }
-
-const measurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
 
 func updateCacheFile(measurementID int, cacheFile string) error {
 	file, err := os.Create(cacheFile)

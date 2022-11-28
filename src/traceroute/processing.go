@@ -61,6 +61,9 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 		TimeoutsSinceKnown: 0,
 	})
 
+	// The probe does not record a reply for itself since it is the origin. Since a packet starts at the origin, we
+	// assume an RTT of 0 to reach the origin. This is necessary to avoid NaNs from entering the data when trying to
+	// send information about the probe node.
 	probeNode.averageRtt.Append(0.0, timestamp)
 	probeNode.totalUsage.Append(1.0, timestamp)
 	probeNode.lastUsed = timestamp
