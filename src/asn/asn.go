@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"errors"
-	"io"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"log"
 	"net/http"
 	"net/netip"
@@ -63,7 +63,7 @@ func (ipToAsn *IpToAsn) refreshFromUrl(url string) (err error) {
 		return err
 	}
 
-	defer closeAndLogErrors("Error while closing HTTP response:", response.Body)
+	defer util.CloseAndLogErrors("Error while closing HTTP response:", response.Body)
 
 	var gzipReader *gzip.Reader
 	if gzipReader, err = gzip.NewReader(response.Body); err != nil {
@@ -189,7 +189,7 @@ func latestCaidaData(searchDir string) (url string, err error) {
 		return
 	}
 
-	defer closeAndLogErrors("Error while closing HTTP response:", response.Body)
+	defer util.CloseAndLogErrors("Error while closing HTTP response:", response.Body)
 
 	scanner := bufio.NewScanner(response.Body)
 
@@ -213,10 +213,4 @@ func latestCaidaData(searchDir string) (url string, err error) {
 
 	url = searchDir + lastLine[lastSeparator+1:]
 	return
-}
-
-func closeAndLogErrors(source string, closer io.Closer) {
-	if err := closer.Close(); err != nil {
-		log.Println(source, err)
-	}
 }
