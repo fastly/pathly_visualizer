@@ -41,8 +41,8 @@ func (arcCloser ArcCloser) Close(closer func()) {
 //
 // Note: The number of goroutines is the number of CPUs on the system and output channel is a bounded channel that can
 // buffer 64 values
-func MakeWorkGroupWith[I, O any](input <-chan I, handler func(I, chan O)) <-chan O {
-	output := make(chan O, 64)
+func MakeWorkGroupWith[I, O any](buffered int, input <-chan I, handler func(I, chan O)) <-chan O {
+	output := make(chan O, buffered)
 	closer := MakeArcCloser(uintptr(runtime.NumCPU()))
 
 	for i := 0; i < runtime.NumCPU(); i++ {
@@ -65,7 +65,7 @@ func MakeWorkGroupWith[I, O any](input <-chan I, handler func(I, chan O)) <-chan
 	return output
 }
 
-func MakeWorkGroup[I, O any](handler func(I, chan O)) (chan I, <-chan O) {
-	inputChannel := make(chan I, 64)
-	return inputChannel, MakeWorkGroupWith(inputChannel, handler)
+func MakeWorkGroup[I, O any](buffered int, handler func(I, chan O)) (chan I, <-chan O) {
+	inputChannel := make(chan I, buffered)
+	return inputChannel, MakeWorkGroupWith(buffered, inputChannel, handler)
 }
