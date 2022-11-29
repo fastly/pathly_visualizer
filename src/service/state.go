@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/asn"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
+	"net/netip"
 	"sync"
 )
 
@@ -16,7 +17,7 @@ import (
 type ApplicationState struct {
 	IpToAsn                    asn.IpToAsn
 	ipToAsnRefreshLock         sync.RWMutex
-	probeRegistrationChannel   chan probe.ProbeRegistration
+	DestinationToProbeMap      map[netip.Addr][]*probe.Probe
 	probeCollectionRefreshLock sync.RWMutex
 	// etc...
 }

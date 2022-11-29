@@ -14,9 +14,8 @@ import (
 )
 
 type ProbeCollection struct {
-	ProbeMap              map[int]*Probe
-	DestinationToProbeMap map[netip.Addr][]*Probe
-	LastRefresh           time.Time
+	ProbeMap    map[int]*Probe
+	LastRefresh time.Time
 }
 
 //Take in a struct channel
@@ -33,9 +32,15 @@ func MakeProbeCollection() ProbeCollection {
 	}
 }
 
+// Struct used for messages between traceroute measurement and probe collection
 type ProbeRegistration struct {
 	ProbeID       int
 	DestinationIP netip.Addr
+}
+
+// Struct to grab the number of probes from Ripe Atlas
+type probeAPIPage struct {
+	Count int
 }
 
 func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
@@ -50,19 +55,16 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	if err != nil {
 		log.Printf("http.Get(%s): %s", ProbePage, err.Error())
 	}
-
 	var pageCountResponse probeAPIPage
 	if err = json.NewDecoder(responseProbe.Body).Decode(&pageCountResponse); err != nil {
 		log.Printf("Could not get the total number of probes: %v\n", err.Error())
 	}
 	defer responseProbe.Body.Close()
-
 	totalPages := (pageCountResponse.Count + 99) / 100
 	pagesPerCPU := totalPages / runtime.NumCPU()
 
 	//Create a wait group
 	var wg sync.WaitGroup
-
 	var once sync.Once
 
 	//Create channel that each routine will send a probe to
@@ -174,26 +176,6 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 	}
 	//Return the probe object
 	return probeObj
-}
-
-func (probeCollection *ProbeCollection) AddProbeDestination(addr netip.Addr, probeID int) {
-	//Get the corresponding probe
-	probe := probeCollection.GetProbesFromID(probeID)
-
-	//Get the list of probes related to that probeID
-	probesFromAddress := probeCollection.DestinationToProbeMap[addr]
-
-	//Check if we already have this probe
-	//This could be annoying should we be sorting them or store as a map
-	for _, currProbe := range probesFromAddress {
-		if currProbe == probe {
-			return
-		}
-	}
-
-	//If we did not find the probe then this is a new one and we append it to the current list of probes
-	probeCollection.DestinationToProbeMap[addr] = append(probesFromAddress, probe)
-
 }
 
 func (probeCollection *ProbeCollection) GetLastRefresh() time.Time {
