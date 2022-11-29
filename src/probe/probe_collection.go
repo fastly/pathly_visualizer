@@ -14,9 +14,15 @@ import (
 )
 
 type ProbeCollection struct {
-	ProbeMap    map[int]*Probe
-	LastRefresh time.Time
+	ProbeMap              map[int]*Probe
+	DestinationToProbeMap map[netip.Addr][]*Probe
+	LastRefresh           time.Time
 }
+
+//Take in a struct channel
+// Probe ID
+// Destination IP
+// Probe registration channel
 
 const ProbePage string = "https://atlas.ripe.net/api/v2/probes/?format=json"
 
@@ -25,6 +31,11 @@ func MakeProbeCollection() ProbeCollection {
 		ProbeMap:    make(map[int]*Probe),
 		LastRefresh: time.Now(), //Unsure if this makes sense but I didn't think this should be nil
 	}
+}
+
+type ProbeRegistration struct {
+	ProbeID       int
+	DestinationIP netip.Addr
 }
 
 func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
@@ -163,6 +174,26 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 	}
 	//Return the probe object
 	return probeObj
+}
+
+func (probeCollection *ProbeCollection) AddProbeDestination(addr netip.Addr, probeID int) {
+	//Get the corresponding probe
+	probe := probeCollection.GetProbesFromID(probeID)
+
+	//Get the list of probes related to that probeID
+	probesFromAddress := probeCollection.DestinationToProbeMap[addr]
+
+	//Check if we already have this probe
+	//This could be annoying should we be sorting them or store as a map
+	for _, currProbe := range probesFromAddress {
+		if currProbe == probe {
+			return
+		}
+	}
+
+	//If we did not find the probe then this is a new one and we append it to the current list of probes
+	probeCollection.DestinationToProbeMap[addr] = append(probesFromAddress, probe)
+
 }
 
 func (probeCollection *ProbeCollection) GetLastRefresh() time.Time {

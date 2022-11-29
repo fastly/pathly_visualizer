@@ -16,7 +16,7 @@ import (
 type ApplicationState struct {
 	IpToAsn                    asn.IpToAsn
 	ipToAsnRefreshLock         sync.RWMutex
-	ProbeCollection            probe.ProbeCollection
+	probeRegistrationChannel   chan probe.ProbeRegistration
 	probeCollectionRefreshLock sync.RWMutex
 	// etc...
 }

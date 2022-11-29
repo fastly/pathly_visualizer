@@ -23,6 +23,7 @@ func main() {
 	services := []service.Service{
 		service.IpToAsnService{},
 		rest_api.NewRestApiService(),
+		service.NewProbeCollectionService(),
 		// etc...
 	}
 

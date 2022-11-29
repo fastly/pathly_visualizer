@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
 	"time"
 )
@@ -9,6 +10,7 @@ import (
 const ProbeCollectionRefreshPeriod = 30 * time.Minute
 
 type ProbeCollectionService struct {
+	allProbes probe.ProbeCollection
 }
 
 func NewProbeCollectionService() *ProbeCollectionService {
@@ -20,7 +22,7 @@ func (service *ProbeCollectionService) Name() string {
 }
 
 func (service *ProbeCollectionService) Init(state *ApplicationState) (err error) {
-	state.ProbeCollection = probe.MakeProbeCollection()
+	service.allProbes = probe.MakeProbeCollection()
 	return nil
 }
 
@@ -29,17 +31,41 @@ func (service *ProbeCollectionService) Run(state *ApplicationState) error {
 	for {
 		//Check how much time has passed since we last updated the probes
 		state.probeCollectionRefreshLock.RLock()
-		timeElapsed := time.Since(state.IpToAsn.LastRefresh())
-		state.ipToAsnRefreshLock.RUnlock()
+		timeElapsed := time.Since(service.allProbes.GetLastRefresh())
+		state.probeCollectionRefreshLock.RUnlock()
 
-		//If it has been less than 30 minutes then wait until we need to get it
+		//If it has been less than 30 minutes then be ready for probe registration
 		if timeElapsed < ProbeCollectionRefreshPeriod {
-			time.Sleep(ProbeCollectionRefreshPeriod - timeElapsed)
+			if err := checkWithinElapsed(service, state, timeElapsed); err != nil {
+				return err
+			}
 		} else {
-			//Else Get the probes from Ripe Atlas
-			state.probeCollectionRefreshLock.Lock()
-			state.ProbeCollection.GetProbesFromRipeAtlas()
-			state.probeCollectionRefreshLock.Unlock()
+			getFromRipeAtlas(service, state)
 		}
 	}
+}
+
+func checkWithinElapsed(service *ProbeCollectionService, state *ApplicationState, timeElapsed time.Duration) error {
+	//Wait on channel or timeout
+	select {
+	//Wait for traceroute measurement to give probes
+	case msg, ok := <-state.probeRegistrationChannel:
+		if !ok {
+			return errors.New("could not receive probe from traceroute measurement")
+		} else {
+			service.allProbes.AddProbeDestination(msg.DestinationIP, msg.ProbeID)
+		}
+
+		//We continue to get probes from Ripe Atlas
+	case <-time.After(ProbeCollectionRefreshPeriod - timeElapsed):
+		return nil
+	}
+	return nil
+}
+
+func getFromRipeAtlas(service *ProbeCollectionService, state *ApplicationState) {
+	//Else Get the probes from Ripe Atlas
+	state.probeCollectionRefreshLock.Lock()
+	service.allProbes.GetProbesFromRipeAtlas()
+	state.probeCollectionRefreshLock.Unlock()
 }
