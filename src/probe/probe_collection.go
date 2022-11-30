@@ -63,10 +63,11 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	var once sync.Once
 
 	//Create channel that each routine will send a probe to
-	probeChannel := make(chan *Probe, 64)
+	probeChannel := make(chan Probe, 64)
 
 	// Read Atlas results using REST API
-	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
+	//This struct is safe to share across threads and use concurrently
+	atlas := ripeatlas.Atlaser(ripeatlas.NewHttp())
 
 	//Add the number of workers to the waitgroup
 	wg.Add(runtime.NumCPU())
@@ -75,7 +76,6 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 
 		//Each CPU core will handle multiple pages
 		go func(currentCore int) {
-			defer wg.Done()
 			//The starting Page for each CPU core
 			startingPage := currentCore * pagesPerCPU
 			var endingPage int
@@ -92,11 +92,11 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 				//Add this routine as a waitgroup
 
 				//Connect to the specific page
-				probes, err := a.Probes(ripeatlas.Params{
+				probes, err := atlas.Probes(ripeatlas.Params{
 					"page": int64(page),
 				})
 				if err != nil {
-					log.Printf("Could not get probes from Ripe Atlas %v", err.Error())
+					log.Println("Could not get probes from Ripe Atlas:,", err.Error())
 				}
 
 				//Check for each probe on the page
@@ -117,6 +117,17 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 					probeChannel <- probeObj
 				}
 			}
+
+			//We are done with this worker
+			wg.Done()
+
+			//Wait until all the routines are done and close the channel
+			//This will be done by one of the workers
+			once.Do(func() {
+				wg.Wait()
+				close(probeChannel)
+				probeCollection.LastRefresh = time.Now()
+			})
 		}(i)
 	}
 
@@ -131,12 +142,21 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 
 	//Add each probe from the channel and add it to our main list
 	for p := range probeChannel {
-		probeCollection.ProbeMap[p.Id] = p
+		//If we already store that probe then replace the contents
+		if probe, ok := probeCollection.ProbeMap[p.Id]; ok {
+			*probe = p
+		} else {
+			//If it is a new probe then add the new pointer
+			probeCollection.ProbeMap[p.Id] = &p
+		}
 	}
 
 }
 
-func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
+// Check if we already store the probe.
+// If So return it
+// If we do not have it in storage then grab the probe from Ripe Atlas
+func (probeCollection *ProbeCollection) GetProbeFromID(probeID int) *Probe {
 
 	//If we already store that probe then return it
 	if probe, ok := probeCollection.ProbeMap[probeID]; ok {
@@ -150,10 +170,10 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 		"pk": strconv.Itoa(probeID),
 	})
 	if err != nil {
-		log.Printf("Could not get probes id: %v from Ripe Atlas: %v", probeID, err)
+		log.Printf("Could not get probes id: %v from Ripe Atlas: %v\n", probeID, err)
 	}
 
-	var probeObj *Probe
+	var probeObj Probe
 	for probe := range probes {
 		//Only worry about correctly parsed and connected probes
 		if !isProbeValid(probe) {
@@ -166,11 +186,11 @@ func (probeCollection *ProbeCollection) GetProbesFromID(probeID int) *Probe {
 			continue
 		}
 		//Add it to our storage
-		probeCollection.ProbeMap[probeObj.Id] = probeObj
-		return probeObj
+		probeCollection.ProbeMap[probeObj.Id] = &probeObj
+		return &probeObj
 	}
-	//Return the probe object
-	return probeObj
+	//Return the probe object, returns nil if no probe is found
+	return &probeObj
 }
 
 func (probeCollection *ProbeCollection) GetLastRefresh() time.Time {
@@ -191,7 +211,7 @@ func isProbeValid(probe *request.Probe) bool {
 	return true
 }
 
-func createProbe(probe *request.Probe) (*Probe, error) {
+func createProbe(probe *request.Probe) (Probe, error) {
 
 	//Get the Addresses
 	var probeAddress4, probeAddress6 netip.Addr
@@ -199,13 +219,13 @@ func createProbe(probe *request.Probe) (*Probe, error) {
 	//Only parse if we are getting a Ipv4 or Ipv6
 	if probe.AddressV4() != "" {
 		if probeAddress4, err = netip.ParseAddr(probe.AddressV4()); err != nil {
-			return nil, err
+			return Probe{}, err
 		}
 	}
 
 	if probe.AddressV6() != "" {
 		if probeAddress6, err = netip.ParseAddr(probe.AddressV6()); err != nil {
-			return nil, err
+			return Probe{}, err
 		}
 	}
 
@@ -221,5 +241,5 @@ func createProbe(probe *request.Probe) (*Probe, error) {
 		Coordinates: probe.Geometry().Coordinates(),
 	}
 
-	return &probeObj, nil
+	return probeObj, nil
 }

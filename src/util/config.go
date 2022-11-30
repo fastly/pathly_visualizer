@@ -20,6 +20,8 @@ const (
 	// CacheDirectory and CacheStoreDuration control where and how long cached files traceroute data are stored
 	CacheDirectory     = "CACHE_DIR"
 	CacheStoreDuration = "CACHE_DURATION"
+
+	ProbeCollectionRefreshPeriod = "PROBE_COLLECTION_REFRESH_PERIOD"
 )
 
 // True and false variable options are taken from the YAML 1.1 standard for booleans

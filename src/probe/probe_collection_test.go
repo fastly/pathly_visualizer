@@ -18,7 +18,7 @@ func TestGetProbes(t *testing.T) {
 func TestGetProbesID(t *testing.T) {
 
 	probeCollection := MakeProbeCollection()
-	probeCollection.GetProbesFromID(1004942)
+	probeCollection.GetProbeFromID(1004942)
 
 	if probeCollection.ProbeMap == nil {
 		t.Errorf("Didn't create Probe Map")
