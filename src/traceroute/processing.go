@@ -65,6 +65,9 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 
 	// Increment route usage
 	routeData.routeUsage.Append(1.0, timestamp)
+
+	// Add metrics for route
+	routeData.Metrics.AppendMeasurement(measurement)
 }
 
 func uniqueNodeIdsForLayer(replies []*traceroute.Reply, prevLayerCount int) int {

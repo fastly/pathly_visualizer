@@ -54,6 +54,7 @@ type RouteData struct {
 	routeUsage util.MovingSummation
 	Nodes      map[NodeId]*Node
 	Edges      map[DirectedGraphEdge]*Edge
+	Metrics    RouteUsageMetrics
 }
 
 func MakeRouteData() *RouteData {
@@ -62,6 +63,7 @@ func MakeRouteData() *RouteData {
 		routeUsage: util.MakeMovingSummation(getStatisticsPeriod()),
 		Nodes:      make(map[NodeId]*Node),
 		Edges:      make(map[DirectedGraphEdge]*Edge),
+		Metrics:    makeRouteUsageMetrics(),
 	}
 }
 
