@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "route-path-analysis-app",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
