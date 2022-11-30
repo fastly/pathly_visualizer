@@ -11,29 +11,34 @@ import ReactFlow, {
     ReactFlowProvider,
 } from 'reactflow';
 import dagre from 'dagre'
-//below nodes and edges used for testing purposes
-import { nodes as initialNodes, edges as initialEdges } from './testElements';
 import { Typography, Popover } from "@material-ui/core";
+import { toPng } from 'html-to-image';
+import * as htmlToImage from 'html-to-image';
 
+
+// below nodes and edges used for testing purposes
+import { nodes as initialNodes, edges as initialEdges } from './testElements';
+
+// reactflow stylesheet
 import 'reactflow/dist/style.css';
 
-//using dagre library to auto format graph --> no need to position anything
+// using dagre library to auto format graph --> no need to position anything
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-//default node width and height
+// default node width and height
 const nodeWidth = 172;
 const nodeHeight = 36;
 
-//default position for all nodes --> changed for nodes later in getLayout
+// default position for all nodes --> changed for nodes later in getLayout
 const position = { x: 0, y: 0 }
 
-//default flowkey --> used for storing flow data locally later
+// default flowkey --> used for storing flow data locally later
 const flowKey = 'example-flow';
 
 function Graph(props) {
 
-    //define here not globally --> avoid rerenders adding multiple of same element into array
+    // define here not globally --> avoid rerenders adding multiple of same element into array
     let responseNodes = []
     let responseEdges = []
 
@@ -43,24 +48,24 @@ function Graph(props) {
     let layoutedNodes
     let layoutedEdges
 
-    //init nodes and edges from passed in props
+    // init nodes and edges from passed in props
     // need to do so in constructNodesEdges to avoid rerenders when nodes are moved in graph
     const constructNodesEdges = React.useMemo(() => {
         // loop through all nodes
-        for(let i = 0; i < props.response.nodes.length; i++) {
+        for (let i = 0; i < props.response.nodes.length; i++) {
             let probeIpSplit = props.response.probeIp.split(" / ")
-            
+
             let asnString
-            if(props.response.nodes[i].asn === undefined){
+            if (props.response.nodes[i].asn === undefined) {
                 asnString = undefined
             }
-            else{
+            else {
                 asnString = props.response.nodes[i].asn.toString()
             }
-    
+
             // clean traceroute data nodes
-            if(props.clean){
-                if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
+            if (props.clean) {
+                if (props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
                     responseNodes.push(
                         {
                             id: props.response.nodes[i].ip,
@@ -84,7 +89,7 @@ function Graph(props) {
                         }
                     )
                 }
-                else{
+                else {
                     responseNodes.push(
                         {
                             id: props.response.nodes[i].ip,
@@ -109,8 +114,8 @@ function Graph(props) {
                 }
             }
             // full traceroute data nodes
-            else{
-                if((props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1]) && (props.response.nodes[i].id.timeSinceKnown === 0)) {
+            else {
+                if ((props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1]) && (props.response.nodes[i].id.timeSinceKnown === 0)) {
                     responseNodes.push(
                         {
                             id: props.response.nodes[i].id.ip,
@@ -134,11 +139,11 @@ function Graph(props) {
                         }
                     )
                 }
-                else{
+                else {
                     // need to check if there are any timeouts in order to set proper id
                     let nodeId = props.response.nodes[i].id.ip
                     let nodeLabel = nodeId
-                    if(props.response.nodes[i].id.timeSinceKnown > 0){
+                    if (props.response.nodes[i].id.timeSinceKnown > 0) {
                         // concat number of timeouts since known onto id
                         nodeId = nodeId + "-" + props.response.nodes[i].id.timeSinceKnown
                         nodeLabel = "*"
@@ -166,7 +171,7 @@ function Graph(props) {
                     )
                 }
             }
-            if(!asnNodes.includes(props.response.nodes[i].asn) && props.response.nodes[i].asn !== undefined){
+            if (!asnNodes.includes(props.response.nodes[i].asn) && props.response.nodes[i].asn !== undefined) {
                 responseNodes.push(
                     {
                         id: props.response.nodes[i].asn.toString(),
@@ -179,15 +184,14 @@ function Graph(props) {
                         position,
                     }
                 )
-    
                 asnNodes.push(props.response.nodes[i].asn)
             }
         }
 
-        //populate edges using response data
-        for(let i = 0; i < props.response.edges.length; i++) {
+        // populate edges using response data
+        for (let i = 0; i < props.response.edges.length; i++) {
             // clean traceroute data edges
-            if(props.clean){
+            if (props.clean) {
                 responseEdges.push(
                     {
                         id: props.response.edges[i].start + "-" + props.response.edges[i].end,
@@ -198,16 +202,16 @@ function Graph(props) {
                 )
             }
             // full traceroute data edges
-            else{
+            else {
                 // need to change id based on how many timeouts since known
                 let edgeSource = props.response.edges[i].start.ip
                 let edgeTarget = props.response.edges[i].end.ip
                 let labelWeight = (props.response.edges[i].outboundCoverage * 100).toString() + "%"
                 let lineWeight = (props.response.edges[i].outboundCoverage).toString() + "%"
-                if(props.response.edges[i].start.timeSinceKnown > 0) {
+                if (props.response.edges[i].start.timeSinceKnown > 0) {
                     edgeSource = edgeSource + "-" + props.response.edges[i].start.timeSinceKnown
                 }
-                if(props.response.edges[i].end.timeSinceKnown > 0){
+                if (props.response.edges[i].end.timeSinceKnown > 0) {
                     edgeTarget = edgeTarget + "-" + props.response.edges[i].end.timeSinceKnown
                 }
                 responseEdges.push(
@@ -216,55 +220,55 @@ function Graph(props) {
                         source: edgeSource,
                         target: edgeTarget,
                         label: labelWeight,
-                        style: {strokeWidth: lineWeight}
+                        style: { strokeWidth: lineWeight }
                     }
                 )
             }
         }
 
         const getLayout = (nodes, edges) => {
-            //set default layout to "left to right"
+            // set default layout to "left to right"
             dagreGraph.setGraph({ rankdir: "LR" });
-        
-            //set nodes and edges in dagre graph
+
+            // set nodes and edges in dagre graph
             nodes.forEach((node) => {
-                dagreGraph.setNode(node.id, {width: nodeWidth, height: nodeHeight})
+                dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
             })
             edges.forEach((edge) => {
                 dagreGraph.setEdge(edge.source, edge.target)
             })
-        
+
             dagre.layout(dagreGraph)
-        
+
             // layout positioning
             // sets arrow coming out of source from right and into target from left
             // sets position of each node
-    
+
             let asnPosMap = new Map()
             let asnSizeMap = new Map()
             let asnGroups = []
-    
+
             nodes.forEach((node) => {
                 const nodeWithPosition = dagreGraph.node(node.id)
                 node.targetPosition = "left"
                 node.sourcePosition = "right"
-                
-                if(node.data.type !== "asn"){
+
+                if (node.data.type !== "asn") {
                     node.position = {
                         x: nodeWithPosition.x - nodeWidth / 2,
                         y: nodeWithPosition.y - nodeHeight / 2,
                     }
-                    if(node.data.asn !== undefined) {
-                        if(!asnPosMap.has(node.data.asn)){
+                    if (node.data.asn !== undefined) {
+                        if (!asnPosMap.has(node.data.asn)) {
                             asnPosMap.set(node.data.asn, node.position)
                         }
-                        else if(asnPosMap.get(node.data.asn).y > node.position.y){
+                        else if (asnPosMap.get(node.data.asn).y > node.position.y) {
                             asnPosMap.set(node.data.asn, {
                                 x: asnPosMap.get(node.data.asn).x,
                                 y: node.position.y,
                             })
                         }
-                        else if(asnPosMap.get(node.data.asn).x > node.position.x){
+                        else if (asnPosMap.get(node.data.asn).x > node.position.x) {
                             asnPosMap.set(node.data.asn, {
                                 x: node.position.x,
                                 y: asnPosMap.get(node.data.asn).y,
@@ -275,7 +279,7 @@ function Graph(props) {
                             y: node.position.y - asnPosMap.get(node.data.asn).y,
                         }
                     }
-                    if(!asnSizeMap.has(node.data.asn)){
+                    if (!asnSizeMap.has(node.data.asn)) {
                         asnSizeMap.set(node.data.asn, {
                             lowWidth: node.position.x + nodeWidth,
                             highWidth: node.position.x + nodeWidth,
@@ -283,11 +287,11 @@ function Graph(props) {
                             highHeight: node.position.y + nodeHeight,
                         })
                     }
-                    else{
+                    else {
                         let widthPlusPos = node.position.x + nodeWidth
                         let heightPlusPos = node.position.y + nodeHeight
                         let nodeAsn = asnSizeMap.get(node.data.asn)
-                        if(nodeAsn.lowWidth > widthPlusPos){
+                        if (nodeAsn.lowWidth > widthPlusPos) {
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: widthPlusPos,
                                 highWidth: nodeAsn.highWidth,
@@ -295,7 +299,7 @@ function Graph(props) {
                                 highHeight: nodeAsn.highHeight,
                             })
                         }
-                        else if(nodeAsn.highWidth < widthPlusPos){
+                        else if (nodeAsn.highWidth < widthPlusPos) {
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: nodeAsn.lowWidth,
                                 highWidth: widthPlusPos,
@@ -303,7 +307,7 @@ function Graph(props) {
                                 highHeight: nodeAsn.highHeight,
                             })
                         }
-                        else if(nodeAsn.lowHeight > heightPlusPos){
+                        else if (nodeAsn.lowHeight > heightPlusPos) {
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: nodeAsn.lowWidth,
                                 highWidth: nodeAsn.highWidth,
@@ -311,7 +315,7 @@ function Graph(props) {
                                 highHeight: nodeAsn.highHeight,
                             })
                         }
-                        else if(nodeAsn.highHeight < heightPlusPos) {
+                        else if (nodeAsn.highHeight < heightPlusPos) {
                             asnSizeMap.set(node.data.asn, {
                                 lowWidth: nodeAsn.lowWidth,
                                 highWidth: nodeAsn.highWidth,
@@ -321,33 +325,33 @@ function Graph(props) {
                         }
                     }
                 }
-                else{
+                else {
                     asnGroups.push(node)
                 }
-                
+
                 return node
             })
-    
+
             asnGroups.forEach((node) => {
                 node.targetPosition = "left"
                 node.sourcePosition = "right"
-    
+
                 node.position = {
                     x: asnPosMap.get(node.id).x,
                     y: asnPosMap.get(node.id).y,
                 }
-    
+
                 node.style = {
                     width: asnSizeMap.get(node.id).highWidth,
                     height: asnSizeMap.get(node.id).lowHeight + asnSizeMap.get(node.id).highHeight,
                 }
-    
+
                 return node
             })
-    
-            return {nodes, edges}
+
+            return { nodes, edges }
         }
-    
+
         // initialize nodes and edges w/ dagre auto layout
         let layout = getLayout(responseNodes, responseEdges)
         layoutedNodes = layout.nodes
@@ -371,26 +375,9 @@ function Graph(props) {
 
         return edge;
     });
-
-    const [anchorEl, setAnchorEl] = React.useState(null);
-    const [test, setTest] = React.useState("test");
-
-    //on node click --> create popup w/ information
-    const onNodeClick = (event, node) => {
-        console.log("click", node);
-        setAnchorEl(event.currentTarget);
-        setTest(JSON.stringify(node.data));
-        console.log(node.data)
-        console.log(node.selected)
-      
-        
-        return node.data
-    }
-
-
     const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
-    //saves current graph state to be restored later
+    // saves current graph state to be restored later
     const onSave = useCallback(() => {
         if (rfInstance) {
             const flow = rfInstance.toObject();
@@ -399,13 +386,13 @@ function Graph(props) {
         }
     }, [rfInstance]);
 
-    //restores saved graph state 
+    // restores saved graph state 
     const onRestore = useCallback(() => {
         const restoreFlow = async () => {
-            //parses flow data from local storage
+            // parses flow data from local storage
             const flow = JSON.parse(localStorage.getItem(flowKey));
 
-            //sets nodes, edges, and viewport using saved flow data
+            // sets nodes, edges, and viewport using saved flow data
             if (flow) {
                 const { x = 0, y = 0, zoom = 1 } = flow.viewport;
                 setNodes(flow.nodes || []);
@@ -436,7 +423,7 @@ function Graph(props) {
         const xhr = new XMLHttpRequest();
 
         (function loop(i, length) {
-            if(i >= length){
+            if (i >= length) {
                 return
             }
 
@@ -444,23 +431,76 @@ function Graph(props) {
             xhr.setRequestHeader("Content-Type", "application/json")
             // what happens when response is received
             xhr.onreadystatechange = () => {
-                if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
                     console.log(xhr.response)
                     // TODO download attachment
-                    loop(i+1, length)
+                    loop(i + 1, length)
                 }
             }
-    
+
             console.log(JSON.stringify(sendingObjs[i]))
             xhr.send(JSON.stringify(sendingObjs[i]))
         })(0, sendingObjs.length)
     }
 
-    // // pass smth in to determine download, save, or reset
-    // const handlePopupOnclick = () => {
+    // TO-DO pass smth in to determine download, save, or reset
 
+
+    // popup handlers
+
+    // function convertToVariable(str) {
+    //     var newValue = "newhelloworld";
+    //     eval("var " + str + " = " + "'" + newValue + "'");
+    //     console.log(helloworld);// newhelloworld
+    //     return str;
     // }
-    const myFunction = () => {
+
+    // eval('var ' + k + i + '= ' + i + ';'); 
+
+    function createPopupConst(nodeId, popoverNum, setPopoverNum) {
+        const popoverStr = "<Popover" + nodeId + " />";
+        const popstr = <Popover1 />
+        // const popoverNum = "popover" + nodeId;
+        // const setPopoverNum = "setPopover" + nodeId;
+
+        const [popoverNum, setPopoverNum] = React.useState < CustomMenuItem > ({
+            anchorElNum: null,
+            child: <Popover1 />
+        })
+    };
+
+    const [anchorEl, setAnchorEl] = React.useState(null);
+    const [test, setTest] = React.useState("test");
+    const [popupList, setPopupList] = React.useState([]);
+    // const [popover1, setPopover1] = React.useState<CustomMenuItem>({
+    //     anchorEl: null,
+    //     child: <Popover1 />
+    //   });
+
+    // on node click --> create popup w/ information
+    const onNodeClick = (event, node) => {
+        console.log("click", node);
+
+        // var thing = document.getElementById("graphcontainer");
+        // thing.insertAdjacentHTML('beforeEnd', '<Popover> id={node.id} open={open} anchorEl={anchorEl} onClose={handleClose} anchorOrigin={{vertical: "bottom", horizontal: "center"}} transformOrigin={{vertical: "top",horizontal: "center"}}> <Typography id="typography">{test}</Typography> </Popover>');
+
+
+
+        // document.getElementById("graphcontainer").innerHTML += addThis;
+        //     '<Popover> id={node.id} open={open} anchorEl={anchorEl} onClose={handleClose} anchorOrigin={{vertical: "bottom", horizontal: "center"}} transformOrigin={{vertical: "top",horizontal: "center"}}> <Typography id="typography">{test}</Typography> </Popover>';
+        setAnchorEl(event.currentTarget);
+        setTest(JSON.stringify(node.data));
+        setPopupList(popupList.concat(<Popover> id={id} open={open} anchorEl={anchorEl} onClose={handleClose} anchorOrigin={{ vertical: "bottom", horizontal: "center" }} transformOrigin={{ vertical: "top", horizontal: "center" }} <Typography id="typography">{test}</Typography> </Popover>))
+        console.log("got to after setpopup")
+
+        // console.log(node.data)
+        // console.log(node.selected)
+        // return node.data
+
+    }
+
+    // handles multiple popups to be selected at once
+    const multiSelectPopUp = () => {
         var popup = document.getElementById("myPopup");
         popup.classList.toggle("show");
     }
@@ -469,24 +509,45 @@ function Graph(props) {
         selectorNode: Node
     };
 
-
-    // const onElementClick = (event, element) => {
-    //     setAnchorEl(event.currentTarget);
-    //     setTest(JSON.stringify(element.data));
-    //     setTest(element.data);
-    //     console.log(element.data)
-    //     console.log(element.selected)
-    // };
-
-    const handleClose = () => {
-        setAnchorEl(null);
-    };
-
     const open = Boolean(anchorEl);
     const id = open ? "simple-popover" : undefined;
 
+    // if (open)
+    //     const id = "simple-popover"
+    // else
+    //     const id = undefined
+
+    const handleClose = () => {
+
+        setAnchorEl(null);
+    };
+
+    // function downloadImage(dataUrl) {
+    //     const a = document.createElement('a');
+
+    //     a.setAttribute('download', 'reactflow.png');
+    //     a.setAttribute('href', dataUrl);
+    //     a.click();
+    // }
+    // const onDownloadClick = () => {
+    //     toPng(document.querySelector('.react-flow'), {
+    //         filter: (node) => {
+    //             // we don't want to add the minimap and the controls to the image
+    //             if (
+    //                 node?.classList?.contains('react-flow__minimap') ||
+    //                 node?.classList?.contains('react-flow__controls')
+    //             ) {
+    //                 return false;
+    //             }
+
+    //             return true;
+    //         },
+    //     }).then(downloadImage);
+    // }
+
+
     return (
-        <div style={{height: 600, width: 600, marginBottom: 100}}>
+        <div style={{ height: 600, width: 600, marginBottom: 100 }}>
             {/* <h2>{props.response.probeIp} to {props.form.destinationIp}</h2> */}
             <h2>{props.response.probeIp} to Destination</h2>
             <ReactFlow
@@ -513,12 +574,18 @@ function Graph(props) {
                 <Background color="#a6b0b4" gap={16} style={{ backgroundColor: "#E8EEF1" }} />
             </ReactFlow>
 
-            <div className="controls">
+            <div className="controls" id="graphcontainer">
                 <Popup trigger={<button> Download Raw Data </button>}
                     position="top center">
                     <div id="confirmPopup">Download as .txt file?<br></br>
-                        <button onClick={getRaw}>Confirm</button></div>
+                        <button onClick={onRestore}>Confirm</button></div>
                 </Popup>
+
+                {/* <Popup trigger={<button> Download Screenshot </button>}
+                    position="top center">
+                    <div id="confirmPopup">Download graph as .png?<br></br>
+                        <button className="download-btn" id="confirmButton" onClick={onDownloadClick}>Confirm</button></div>
+                </Popup> */}
 
                 <Popup trigger={<button> Save View </button>}
                     position="top center">
@@ -532,13 +599,18 @@ function Graph(props) {
                         <button id="confirmButton" onClick={onRestore}>Confirm</button></div>
                 </Popup>
 
-                {/* <div class="popup"> <button onClick={myFunction}> Tester Node </button>
+                <div id="nodePopups" key={id}>
+                    {popupList}
+                </div>
+
+                {/* <div class="popup"> <button onClick={multiSelectPopUp}> Tester Node </button>
                     <span class="popuptext" id="myPopup">
                         <div class="popup" id="confirmPopup">Information about Node<br></br>
                     </div></span>
                 </div> */}
 
-                <Popover
+
+                {/* <Popover
                     id={id}
                     open={open}
                     anchorEl={anchorEl}
@@ -553,15 +625,13 @@ function Graph(props) {
                     }}
                 >
                     <Typography id="typography">{test}</Typography>
-                </Popover>
-
-
+                </Popover> */}
             </div>
 
-            {/* don't delete! experimenting to get multiple pop ups to stay on screen 
-            <div class="popup" onClick={myFunction}>Pretend NODE
+            {/* don't delete! experimenting to get multiple pop ups to stay on screen  */}
+            <div class="popup" onClick={multiSelectPopUp}>Pretend NODE
                 <span class="popuptext" id="myPopup">Insert Node Info</span>
-            </div> */}
+            </div>
         </div >
     )
 }
@@ -574,5 +644,7 @@ function GraphWithProvider(props) {
         </ReactFlowProvider>
     )
 }
+
+
 
 export default GraphWithProvider
