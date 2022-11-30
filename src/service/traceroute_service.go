@@ -75,12 +75,12 @@ loop:
 
 func (service TracerouteDataService) Run(state *ApplicationState) (err error) {
 	var resultChannel <-chan *measurement.Result
-	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(46320619); err != nil {
+	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(47072659); err != nil {
 		return
 	}
 
 	service.handleIncomingMessages(state, resultChannel)
-	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(46320708); err != nil {
+	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(47072660); err != nil {
 		return
 	}
 

@@ -40,7 +40,9 @@ type RouteUsageMetrics struct {
 }
 
 func makeRouteUsageMetrics() RouteUsageMetrics {
-	return RouteUsageMetrics{}
+	return RouteUsageMetrics{
+		MeasurementRanges: make(map[int]TimeRange),
+	}
 }
 
 func (metrics *RouteUsageMetrics) AppendMeasurement(measurement *measurement.Result) {
