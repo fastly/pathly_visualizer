@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const measurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
+const MeasurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
 
 const pkParam = "pk"
 const startParam = "start"
@@ -105,7 +105,7 @@ func updateCacheFile(measurementID int, cacheFile string) error {
 	writer := bufio.NewWriter(file)
 	defer util.CloseAndLogErrors("Failed to close cache file writer", file)
 
-	url := fmt.Sprintf("%s/%d/results?format=txt", measurementsUrl, measurementID)
+	url := fmt.Sprintf("%s/%d/results?format=txt", MeasurementsUrl, measurementID)
 	res, err := http.Get(url)
 	if err != nil {
 		return err

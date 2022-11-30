@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/ripe_atlas"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
+	"io"
 	"net/http"
 	"net/netip"
 )
@@ -21,35 +23,54 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 	}
 
 	state.TracerouteDataLock.Lock()
-	_, ok = state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
+	routeData, ok := state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
 	state.TracerouteDataLock.Unlock()
 	if !ok {
 		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
 		return
 	}
 
-	// TODO: Fetch measurement ID based on destination
-	measurementId := 0
+	var dataUrls []string
+	for measurement, timeRange := range routeData.Metrics.MeasurementRanges {
+		url := fmt.Sprintf("%s/%d/results?format=txt&start=%d&stop=%d",
+			ripe_atlas.MeasurementsUrl, measurement, timeRange.Start.Unix(), timeRange.End.Unix())
 
-	fileName := fmt.Sprintf("raw_traceroute_%d_%d.json", measurementId, request.ProbeId)
+		dataUrls = append(dataUrls, url)
+	}
+
+	// If possible redirect to RIPE Atlas
+	if len(dataUrls) == 1 {
+		ctx.Redirect(http.StatusFound, dataUrls[0])
+		return
+	}
+
+	fileName := fmt.Sprintf("raw_traceroute_%d.json", request.ProbeId)
 
 	header := ctx.Writer.Header()
-	header["Content-type"] = []string{"application/octet-stream"}
+	header["Content-Type"] = []string{"application/octet-stream"}
 	header["Content-Disposition"] = []string{"attachment; filename=" + fileName}
 
-	// TODO: Actually fetch the raw data
-	rawData := []byte("not implemented, but at least the file worked!")
-
-	for len(rawData) > 0 {
-		n, err := ctx.Writer.Write(rawData)
+	for _, url := range dataUrls {
+		response, err := http.Get(url)
 		if err != nil {
-			// At this point we have already sent the positive status code so this is just for internal logging
 			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
 		}
 
-		rawData = rawData[n:]
+		if _, err := io.Copy(ctx.Writer, response.Body); err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		if err := response.Body.Close(); err != nil {
+			_ = ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
 	}
+
+	ctx.Writer.Flush()
 }
+
 func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
 	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
 	if !ok {
