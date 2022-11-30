@@ -4,6 +4,7 @@ import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/asn"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
 	"net/netip"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
 	"sync"
 )
 
@@ -19,6 +20,8 @@ type ApplicationState struct {
 	ipToAsnRefreshLock         sync.RWMutex
 	DestinationToProbeMap      map[netip.Addr][]*probe.Probe
 	probeCollectionRefreshLock sync.RWMutex
+	TracerouteData     traceroute.TracerouteData
+	tracerouteDataLock sync.Mutex
 	// etc...
 }
 
