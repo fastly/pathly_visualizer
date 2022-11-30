@@ -13,9 +13,6 @@ import ReactFlow, {
 import dagre from 'dagre'
 import { Typography, Popover } from "@material-ui/core";
 
-// below nodes and edges used for testing purposes
-import { nodes as initialNodes, edges as initialEdges } from './testElements';
-
 // linking stylesheet
 import 'reactflow/dist/style.css';
 
@@ -24,8 +21,8 @@ const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
 // default node width and height
-const nodeWidth = 172;
-const nodeHeight = 36;
+const nodeWidth = 70;
+const nodeHeight = 70;
 
 // default position for all nodes --> changed for nodes later in getLayout
 const position = { x: 0, y: 0 }
@@ -49,85 +46,67 @@ function Graph(props) {
     // need to do so in constructNodesEdges to avoid rerenders when nodes are moved in graph
     const constructNodesEdges = React.useMemo(() => {
         // loop through all nodes
-        for(let i = 0; i < props.response.nodes.length; i++) {
+        for(const currNode of props.response.nodes) {
             let probeIpSplit = props.response.probeIp.split(" / ")
             
             let asnString
-            if(props.response.nodes[i].asn === undefined){
+            if(currNode.asn === undefined){
                 asnString = undefined
             }
             else{
-                asnString = props.response.nodes[i].asn.toString()
+                asnString = currNode.asn.toString()
             }
     
             // clean traceroute data nodes
             if(props.clean){
-                // set node to input node if the ip == starting probe ip
-                if(props.response.nodes[i].ip === probeIpSplit[0] || props.response.nodes[i].ip === probeIpSplit[1]) {
-                    responseNodes.push(
-                        {
-                            id: props.response.nodes[i].ip,
-                            type: 'input',
-                            data: {
-                                label: props.response.nodes[i].ip,
-                                type: 'ip',
-                                asn: asnString,
-                                avgRtt: props.response.nodes[i].averageRtt,
-                                lastUsed: props.response.nodes[i].lastUsed,
-                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                            },
-                            className: 'circle',
-                            style: {
-                                background: '#E98F91',
-                            },
-                            parentNode: asnString,
-                            extent: 'parent',
-                            zIndex: 1,
-                            position,
-                        }
-                    )
+                
+                let nodeObj = {
+                    id: currNode.ip,
+                    data: {
+                        label: currNode.ip,
+                        type: 'ip',
+                        asn: asnString,
+                        avgRtt: currNode.averageRtt,
+                        lastUsed: currNode.lastUsed,
+                        avgPathLifespan: currNode.averagePathLifespan,
+                    },
+                    className: 'circle',
+                    style: {
+                        background: '#5DCFE7',
+                    },
+                    parentNode: asnString,
+                    extent: 'parent',
+                    zIndex: 1,
+                    position,
+                }
+                
+                // set node to input node if the ip == starting probe ip    
+                if(probeIpSplit.includes(currNode.ip)) {
+                    let inputObj = nodeObj
+                    inputObj.type = 'input'
+                    responseNodes.push(inputObj)
                 }
                 // if not starting probe, push as normal node without 'type: input'
                 else{
-                    responseNodes.push(
-                        {
-                            id: props.response.nodes[i].ip,
-                            data: {
-                                label: props.response.nodes[i].ip,
-                                type: 'ip',
-                                asn: asnString,
-                                avgRtt: props.response.nodes[i].averageRtt,
-                                lastUsed: props.response.nodes[i].lastUsed,
-                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
-                            },
-                            className: 'circle',
-                            style: {
-                                background: '#5DCFE7',
-                            },
-                            parentNode: asnString,
-                            extent: 'parent',
-                            zIndex: 1,
-                            position,
-                        }
-                    )
+                    responseNodes.push(nodeObj)
                 }
             }
 
             // full traceroute data nodes
             else{
                 // set node to input node if the ip == starting probe ip --> also need to verify that the amount of timesinceknown is 0
-                if((props.response.nodes[i].id.ip === probeIpSplit[0] || props.response.nodes[i].id.ip === probeIpSplit[1]) && (props.response.nodes[i].id.timeSinceKnown === 0)) {
+                if((probeIpSplit.includes(currNode.id.ip)) && (currNode.id.timeSinceKnown === 0)) {
                     responseNodes.push(
                         {
-                            id: props.response.nodes[i].id.ip,
+                            id: currNode.id.ip,
                             type: 'input',
                             data: {
-                                label: props.response.nodes[i].id.ip,
+                                label: currNode.id.ip,
                                 type: 'ip',
                                 asn: asnString,
-                                avgRtt: props.response.nodes[i].averageRtt,
-                                lastUsed: props.response.nodes[i].lastUsed,
-                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                                avgRtt: currNode.averageRtt,
+                                lastUsed: currNode.lastUsed,
+                                avgPathLifespan: currNode.averagePathLifespan,
                             },
                             className: 'circle',
                             style: {
@@ -143,13 +122,13 @@ function Graph(props) {
                 // if not starting probe, push as normal node without 'type: input'
                 else{
                     // need to check if there are any timeouts in order to set proper id
-                    let nodeId = props.response.nodes[i].id.ip
+                    let nodeId = currNode.id.ip
                     //change node color and label based on if node is timeout or not
                     let nodeLabel = nodeId
                     let nodeColor = '#5DCFE7'
-                    if(props.response.nodes[i].id.timeSinceKnown > 0){
+                    if(currNode.id.timeSinceKnown > 0){
                         // concat number of timeouts since known onto id
-                        nodeId = nodeId + "-" + props.response.nodes[i].id.timeSinceKnown
+                        nodeId = nodeId + "-" + currNode.id.timeSinceKnown
                         nodeLabel = "*"
                         nodeColor = "#E98F91"
                     }
@@ -160,9 +139,9 @@ function Graph(props) {
                                 label: nodeLabel,
                                 type: 'ip',
                                 asn: asnString,
-                                avgRtt: props.response.nodes[i].averageRtt,
-                                lastUsed: props.response.nodes[i].lastUsed,
-                                avgPathLifespan: props.response.nodes[i].averagePathLifespan,
+                                avgRtt: currNode.averageRtt,
+                                lastUsed: currNode.lastUsed,
+                                avgPathLifespan: currNode.averagePathLifespan,
                             },
                             className: 'circle',
                             style: {
@@ -177,12 +156,12 @@ function Graph(props) {
                 }
             }
             // push asn nodes onto node arr --> make sure to only push one of each asn
-            if(!asnNodes.includes(props.response.nodes[i].asn) && props.response.nodes[i].asn !== undefined){
+            if(!asnNodes.includes(currNode.asn) && currNode.asn !== undefined){
                 responseNodes.push(
                     {
-                        id: props.response.nodes[i].asn.toString(),
+                        id: currNode.asn.toString(),
                         data: {
-                            label: props.response.nodes[i].asn,
+                            label: currNode.asn,
                             type: 'asn',
                         },
                         className: 'group',
@@ -191,7 +170,7 @@ function Graph(props) {
                     }
                 )
     
-                asnNodes.push(props.response.nodes[i].asn)
+                asnNodes.push(currNode.asn)
             }
         }
 
@@ -520,8 +499,48 @@ function Graph(props) {
             // what happens when response is received
             xhr.onreadystatechange = () => {
                 if(xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-                    console.log(xhr.response)
-                    // TODO download attachment
+                    // create blob of xhr response to create json file with
+                    let blob = new Blob([xhr.response], {type: "application/json"})
+                    let filename = ""
+                    // get content-disposition attachment
+                    let disp = xhr.getResponseHeader('Content-Disposition') 
+                    
+                    if(disp && disp.indexOf('attachment') !== -1){
+                        let filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        let matches = filenameRegex.exec(disp);
+                        if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
+                    }
+
+                    if(typeof window.navigator.msSaveBlob !== 'undefined') {
+                        window.navigator.msSaveBlob(blob, filename)
+                    }
+                    else {
+                        let url = window.URL || window.webkitURL
+                        let downloadUrl = url.createObjectURL(blob)
+
+                        if(filename) {
+                            //create download using new window location
+                            let a = document.createElement("a")
+                            if(typeof a.download === 'undefined'){
+                                window.location.href = downloadUrl
+                            }
+                            else {
+                                a.href = downloadUrl
+                                a.download = filename
+                                document.body.appendChild(a)
+                                a.click()
+                            }
+                        }
+                        else {
+                            window.location.href = downloadUrl
+                        }
+
+                        //cleanup 
+                        setTimeout(function () {
+                            url.revokeObjectURL(downloadUrl)
+                        }, 100)
+                    }
+                    //get twice (one for both ipv4 and 6)
                     loop(i+1, length)
                 }
             }
