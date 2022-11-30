@@ -28,7 +28,7 @@ const ProbePage string = "https://atlas.ripe.net/api/v2/probes/?format=json"
 func MakeProbeCollection() ProbeCollection {
 	return ProbeCollection{
 		ProbeMap:    make(map[int]*Probe),
-		LastRefresh: time.Now(), //Unsure if this makes sense but I didn't think this should be nil
+		LastRefresh: time.Unix(0, 0),
 	}
 }
 
@@ -38,24 +38,16 @@ type ProbeRegistration struct {
 	DestinationIP netip.Addr
 }
 
-// Struct to grab the number of probes from Ripe Atlas
-type probeAPIPage struct {
-	Count int
-}
-
 func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
-
-	//Create the probe map if already didn't
-	if probeCollection.ProbeMap == nil {
-		probeCollection.ProbeMap = make(map[int]*Probe)
-	}
 
 	//Get the total number of pages
 	responseProbe, err := http.Get(ProbePage)
 	if err != nil {
-		log.Printf("http.Get(%s): %s", ProbePage, err.Error())
+		log.Printf("Could not connect to probe page http.Get(%s): %s\n", ProbePage, err.Error())
 	}
-	var pageCountResponse probeAPIPage
+	var pageCountResponse struct {
+		Count int
+	}
 	if err = json.NewDecoder(responseProbe.Body).Decode(&pageCountResponse); err != nil {
 		log.Printf("Could not get the total number of probes: %v\n", err.Error())
 	}
