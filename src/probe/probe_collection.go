@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/DNS-OARC/ripeatlas"
 	"github.com/DNS-OARC/ripeatlas/request"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"log"
 	"net/http"
 	"net/netip"
@@ -48,10 +49,12 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	var pageCountResponse struct {
 		Count int
 	}
+
 	if err = json.NewDecoder(responseProbe.Body).Decode(&pageCountResponse); err != nil {
 		log.Printf("Could not get the total number of probes: %v\n", err.Error())
+		return
 	}
-	defer responseProbe.Body.Close()
+	defer util.CloseAndLogErrors("Probes from Ripe Atlas", responseProbe.Body)
 	totalPages := (pageCountResponse.Count + 99) / 100
 	pagesPerCPU := totalPages / runtime.NumCPU()
 
