@@ -37,6 +37,9 @@ function App() {
     let combProbeIp = "";
     let combNodes = [];
     let combEdges = [];
+    let combinedResponse
+
+    let done = false
 
     let fetchUrl = "http://localhost:8080/api/traceroute/full"
     if(document.getElementById("fullOrClean").checked){
@@ -60,22 +63,30 @@ function App() {
           combProbeIp = data.probeIp
         } else {
           combProbeIp += " / " + data.probeIp
+          done = true
         }
       })
       .catch((error) => {
         console.error(error)
       })
       .then(function() {
-        let combinedResponse = {
+        combinedResponse = {
           probeIp: combProbeIp,
           nodes: combNodes,
           edges: combEdges,
         }
         console.log(combinedResponse)
-        setGraphList(graphList.concat(<Graph response={combinedResponse} form={formObj} clean={document.getElementById("fullOrClean").checked}></Graph>))
+        if(done){
+          setGraphList(graphList.concat(
+            <Graph response={combinedResponse} form={formObj} clean={document.getElementById("fullOrClean").checked} asnSetting={document.getElementById("boxOrColor").checked}>
+            </Graph>
+          ))
+        }
       })
     })
 
+    Promise.all(requests).then(console.log("test"))
+    
   }
 
   const ipFormObjs = (splitArr, formObj) => {
@@ -119,13 +130,21 @@ function App() {
             </label>
             <p>Clean Data</p>
           </div>
+          <div className="switchBox">
+            <p>ASN Boxes</p>
+            <label className="switch">
+              <input type="checkbox" name="boxOrColor" id="boxOrColor"/>
+              <span className="slider round"></span>
+            </label>
+            <p>ASN Colors</p>
+          </div>
           <button id="submitForm" type="submit">Visualize</button>
         </form>
       </div>
       <div id="graphArea">
         {graphList}
         {/* <Graph response={tDataFull} clean={false}></Graph> */}
-        <Graph response={tData} clean={true}></Graph>
+        {/* <Graph response={tData} clean={true}></Graph> */}
       </div>
     </>
   );

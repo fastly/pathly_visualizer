@@ -9,24 +9,18 @@ import ReactFlow, {
     useEdgesState,
     useReactFlow,
     ReactFlowProvider,
+    getRectOfNodes,
 } from 'reactflow';
 import dagre from 'dagre'
 import { Typography, Popover } from "@material-ui/core";
 import { toPng } from 'html-to-image';
 import * as htmlToImage from 'html-to-image';
 
-// //  below nodes and edges used for testing purposes
-// import { nodes as initialNodes, edges as initialEdges } from '.test_data/testElements';
-
 // linking stylesheet
 import 'reactflow/dist/style.css';
 
-// using dagre library to auto format graph --> no need to position anything
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 // default node width and height
-const nodeWidth = 70;
+const nodeWidth = 140;
 const nodeHeight = 70;
 
 // default position for all nodes --> changed for nodes later in getLayout
@@ -34,6 +28,8 @@ const position = { x: 0, y: 0 }
 
 // default flowkey --> used for storing flow data locally later
 const flowKey = 'example-flow';
+
+let asnColorMap = new Map()
 
 function Graph(props) {
 
@@ -53,15 +49,18 @@ function Graph(props) {
         // loop through all nodes
         for(const currNode of props.response.nodes) {
             let probeIpSplit = props.response.probeIp.split(" / ")
-
-            let asnString
-            if(currNode.asn === undefined){
-                asnString = undefined
+            
+            let asnString = undefined
+            // verify user wants asn boxes to be rendered before defining asn boxes as parent nodes
+            if(!props.asnSetting){
+                if(currNode.asn === undefined){
+                    asnString = undefined
+                }
+                else{
+                    asnString = currNode.asn.toString()
+                }
             }
-            else{
-                asnString = currNode.asn.toString()
-            }
-
+            
             // clean traceroute data nodes
             if(props.clean){
                 
@@ -84,7 +83,7 @@ function Graph(props) {
                     zIndex: 1,
                     position,
                 }
-                
+
                 // set node to input node if the ip == starting probe ip    
                 if(probeIpSplit.includes(currNode.ip)) {
                     let inputObj = nodeObj
@@ -131,6 +130,17 @@ function Graph(props) {
                     //change node color and label based on if node is timeout or not
                     let nodeLabel = nodeId
                     let nodeColor = '#5DCFE7'
+                    // set node colors according to asn if requested
+                    if(props.asnSetting){
+                        if(asnColorMap.has(asnString)){
+                            nodeColor = asnColorMap.get(asnString)
+                        } else{
+                            const randomColor = Math.floor(Math.random()*16777215).toString(16)
+                            asnColorMap.set(asnString, '#' + randomColor)
+                            nodeColor = randomColor
+                            console.log(asnString)
+                        }
+                    }
                     if(currNode.id.timeSinceKnown > 0){
                         // concat number of timeouts since known onto id
                         nodeId = nodeId + "-" + currNode.id.timeSinceKnown
@@ -161,21 +171,24 @@ function Graph(props) {
                 }
             }
             // push asn nodes onto node arr --> make sure to only push one of each asn
-            if(!asnNodes.includes(currNode.asn) && currNode.asn !== undefined){
-                responseNodes.push(
-                    {
-                        id: currNode.asn.toString(),
-                        data: {
-                            label: currNode.asn,
-                            type: 'asn',
-                        },
-                        className: 'group',
-                        zIndex: 0,
-                        position,
-                    }
-                )
-    
-                asnNodes.push(currNode.asn)
+            // verify they want asn boxes to be rendered
+            if(!props.asnSetting){
+                if(!asnNodes.includes(currNode.asn) && currNode.asn !== undefined){
+                    responseNodes.push(
+                        {
+                            id: currNode.asn.toString(),
+                            data: {
+                                label: currNode.asn,
+                                type: 'asn',
+                            },
+                            className: 'group',
+                            zIndex: 0,
+                            position,
+                        }
+                    )
+        
+                    asnNodes.push(currNode.asn)
+                }
             }
         }
 
@@ -222,9 +235,11 @@ function Graph(props) {
 
         // auto layout function using dagre layout algorithm
         const getLayout = (nodes, edges) => {
+            // using dagre library to auto format graph --> no need to position anything
+            const dagreGraph = new dagre.graphlib.Graph();
+            dagreGraph.setDefaultEdgeLabel(() => ({}));
             // set default layout to "left to right"
-            dagreGraph.setGraph({ rankdir: "LR" });
-        
+            dagreGraph.setGraph({ rankdir: "LR" })
             // set nodes and edges in dagre graph
             nodes.forEach((node) => {
                 dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
@@ -232,147 +247,155 @@ function Graph(props) {
             edges.forEach((edge) => {
                 dagreGraph.setEdge(edge.source, edge.target)
             })
-
+            
             dagre.layout(dagreGraph)
-    
-            // used for determining asn positioning 
 
-            // layout positioning
-            // sets arrow coming out of source from right and into target from left
-            // sets position of each node
-
-            let asnPosMap = new Map()
-            //used for determining size of asn boxes
-            let asnSizeMap = new Map()
-            let asnGroups = []
-    
             // loop through each node
             nodes.forEach((node) => {
                 const nodeWithPosition = dagreGraph.node(node.id)
                 node.targetPosition = "left"
                 node.sourcePosition = "right"
-                
-                // check if node is asn, if not, follow steps:
-                // 1) set node position using dagre algorithm
-                // 2) check if the asn is undefined, if not, set the asn position in the asnPosMap equal to the position from step 1
-                // 3) check if asn is in the posMap, if so, verify that the node is not further outwards (left/up) than the specified asn position
-                //      --> if so, set asn position to position of more outwards node
-                // 4) set node position to it's current position minus the position of the asn. Nodes in this library are positioned respectively
-                //      --> within their specified groups so the positions need to be shrunk down to fit inside the asns
-                if(node.data.type !== "asn"){
-                    // Step 1
+                  
+                if(node.data.type === "asn"){
+                    node.position = {
+                        x: nodeWithPosition.x - (nodes.length * 20) / 2,
+                        y: nodeWithPosition.y - nodeHeight / 2,
+                    }
+                }
+                else{
                     node.position = {
                         x: nodeWithPosition.x - nodeWidth / 2,
                         y: nodeWithPosition.y - nodeHeight / 2,
                     }
-                    // Step 2
-                    if (node.data.asn !== undefined) {
-                        if (!asnPosMap.has(node.data.asn)) {
-                            asnPosMap.set(node.data.asn, node.position)
-                        }
-                        // Step 3
-                        else if (asnPosMap.get(node.data.asn).y > node.position.y) {
-                            asnPosMap.set(node.data.asn, {
-                                x: asnPosMap.get(node.data.asn).x,
-                                y: node.position.y,
-                            })
-                        }
-                        else if (asnPosMap.get(node.data.asn).x > node.position.x) {
-                            asnPosMap.set(node.data.asn, {
-                                x: node.position.x,
-                                y: asnPosMap.get(node.data.asn).y,
-                            })
-                        }
-                        // Step 4
-                        node.position = {
-                            x: node.position.x - asnPosMap.get(node.data.asn).x,
-                            y: node.position.y - asnPosMap.get(node.data.asn).y,
-                        }
-                    }
-                    if (!asnSizeMap.has(node.data.asn)) {
-                        asnSizeMap.set(node.data.asn, {
-                            lowWidth: node.position.x + nodeWidth,
-                            highWidth: node.position.x + nodeWidth,
-                            lowHeight: node.position.y + nodeHeight,
-                            highHeight: node.position.y + nodeHeight,
-                        })
-                    }
-                    // Step 5
-                    // Need to set asn position by finding the most north, east, south, and westward nodes
-                    else {
-                        let widthPlusPos = node.position.x + nodeWidth
-                        let heightPlusPos = node.position.y + nodeHeight
-                        let nodeAsn = asnSizeMap.get(node.data.asn)
-                        // westwards
-                        if (nodeAsn.lowWidth > widthPlusPos) {
-                            asnSizeMap.set(node.data.asn, {
-                                lowWidth: widthPlusPos,
-                                highWidth: nodeAsn.highWidth,
-                                lowHeight: nodeAsn.lowHeight,
-                                highHeight: nodeAsn.highHeight,
-                            })
-                        }
-                        // eastwards
-                        else if (nodeAsn.highWidth < widthPlusPos) {
-                            asnSizeMap.set(node.data.asn, {
-                                lowWidth: nodeAsn.lowWidth,
-                                highWidth: widthPlusPos,
-                                lowHeight: nodeAsn.lowHeight,
-                                highHeight: nodeAsn.highHeight,
-                            })
-                        }
-                        // northwards
-                        else if (nodeAsn.lowHeight > heightPlusPos) {
-                            asnSizeMap.set(node.data.asn, {
-                                lowWidth: nodeAsn.lowWidth,
-                                highWidth: nodeAsn.highWidth,
-                                lowHeight: heightPlusPos,
-                                highHeight: nodeAsn.highHeight,
-                            })
-                        }
-                        // southwards
-                        else if (nodeAsn.highHeight < heightPlusPos) {
-                            asnSizeMap.set(node.data.asn, {
-                                lowWidth: nodeAsn.lowWidth,
-                                highWidth: nodeAsn.highWidth,
-                                lowHeight: nodeAsn.lowHeight,
-                                highHeight: heightPlusPos,
-                            })
-                        }
-                    }
                 }
-                else {
-                    asnGroups.push(node)
-                }
-
+                
+                
                 return node
             })
-
-            // set asn positions in auto layout using asnPosMap and size using asnSizeMap
-            asnGroups.forEach((node) => {
-                node.targetPosition = "left"
-                node.sourcePosition = "right"
-
-                node.position = {
-                    x: asnPosMap.get(node.id).x,
-                    y: asnPosMap.get(node.id).y,
-                }
-
-                node.style = {
-                    width: asnSizeMap.get(node.id).highWidth,
-                    height: asnSizeMap.get(node.id).lowHeight + asnSizeMap.get(node.id).highHeight,
-                }
-
-                return node
-            })
-
-            return { nodes, edges }
+    
+            return {nodes, edges}
         }
-
+    
         // initialize nodes and edges w/ dagre auto layout
-        let layout = getLayout(responseNodes, responseEdges)
-        layoutedNodes = layout.nodes
-        layoutedEdges = layout.edges
+        // check if asn boxes or colors
+        if(!props.asnSetting){
+            let resNodesAsnMap = new Map()
+            let asnGroups = []
+            let asnNodesMap = new Map()
+            let allNodesMap = new Map()
+            // Loop through nodes and group them into several arrays based on their asns
+            responseNodes.forEach((node) => {
+                let nodeAsn = node.data.asn
+                if(node.data.type === "asn"){
+                    asnGroups.push(node.id)
+                } 
+
+                if(nodeAsn !== undefined){
+                    asnNodesMap.set(node.id, nodeAsn)
+                }
+                
+                if(resNodesAsnMap.has(nodeAsn)){
+                    let nodeArr = resNodesAsnMap.get(nodeAsn)
+                    nodeArr.push(node)
+                    resNodesAsnMap.set(nodeAsn, nodeArr)
+                } else{
+                    resNodesAsnMap.set(nodeAsn, [node])
+                }
+
+                // need this to create edges between asns and other nodes to get the layout algorithm working
+                allNodesMap.set(node.id, nodeAsn)
+            })
+
+            let addInvisEdges = responseEdges
+            let addedEdges = []
+            // adding edges between asns and other nodes so the layout algorithm works
+            // edges are invisible, mainly used for auto placement
+            responseEdges.forEach((edge) => {
+                let src = allNodesMap.get(edge.source)
+                let edgeSrc = src
+                if(src === undefined){
+                    edgeSrc = edge.source               
+                }
+                let tgt = allNodesMap.get(edge.target)
+                let edgeTgt = tgt
+                if(tgt === undefined){
+                    edgeTgt = edge.target
+                }
+
+                let edgeId = edgeSrc + "-" + edgeTgt
+                if(!addedEdges.includes(edgeId)){
+                    // checking if the source === target (aka is the other node outside of the current asn)
+                    if(src !== tgt){
+                        addInvisEdges.push({
+                            id: edgeId,
+                            source: edgeSrc,
+                            target: edgeTgt,
+                            style: {strokeWidth: 0},
+                        })
+                        addedEdges.push(edgeId)
+                    }
+                }
+            })
+
+            let resEdgesAsnMap = new Map()
+            // loop through edges and group them into multiple arrays based on the asns of their source nodes
+            addInvisEdges.forEach((edge) => {
+                if(asnNodesMap.has(edge.source)){
+                    let asn = asnNodesMap.get(edge.source)
+                    if(resEdgesAsnMap.has(asn)){
+                        let asnEdges = resEdgesAsnMap.get(asn)
+                        asnEdges.push(edge)
+                        resEdgesAsnMap.set(asn, asnEdges)
+                    } else{
+                        resEdgesAsnMap.set(asn, [edge])
+                    }
+                } else{
+                    if(resEdgesAsnMap.has(undefined)){
+                        let nonAsnEdges = resEdgesAsnMap.get(undefined)
+                        nonAsnEdges.push(edge)
+                        resEdgesAsnMap.set(undefined, nonAsnEdges)
+                    } else{
+                        resEdgesAsnMap.set(undefined, [edge])
+                    }
+                }
+            })
+
+            let lNodes = []
+            let lEdges = []
+            // push undefined for nodes that don't have asn
+            asnGroups.push(undefined)
+
+            let asnSizeMap = new Map()
+            // loop through all asns (including undefined aka no asn) and perform auto layout algorithm on all groups of nodes and edges
+            for(const asn of asnGroups){
+                let currAsnNodes = resNodesAsnMap.get(asn)
+                let currAsnEdges = resEdgesAsnMap.get(asn)
+                let asnLayout = getLayout(currAsnNodes, currAsnEdges)
+                lNodes.push(...asnLayout.nodes)
+                lEdges.push(...asnLayout.edges)
+                if(asn !== undefined){
+                    asnSizeMap.set(asn, getRectOfNodes(asnLayout.nodes))
+                }
+            }
+            lNodes.forEach((node) => {
+                if(node.data.type === "asn"){
+                    let size = asnSizeMap.get(node.id)
+                    node.style = {
+                        width: size.width + nodeWidth,
+                        height: size.height + nodeHeight,
+                    }
+                }
+            })
+            //let layout = getLayout(responseNodes, responseEdges)
+            layoutedNodes = lNodes
+            layoutedEdges = lEdges
+        }
+        // layout without asn boxes, just layout nodes and edges normally
+        else{
+            let layout = getLayout(responseNodes, responseEdges)
+            layoutedNodes = layout.nodes
+            layoutedEdges = layout.edges
+        }
     // Just a reminder down here that everything in constructNodesEdges is within this function to avoid react rerenders which slow down the webpage
     }, [])
 
@@ -382,18 +405,6 @@ function Graph(props) {
     const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
     const [rfInstance, setRfInstance] = useState(null);
     const { setViewport } = useReactFlow();
-
-    // used for different edge types, taken from documentation
-    // we are using a bit of a shortcut here to adjust the edge type
-    // this could also be done with a custom edge for example
-    const edgesWithUpdatedTypes = edges.map((edge) => {
-        if (edge.sourceHandle) {
-            const edgeType = nodes.find((node) => node.type === 'custom').data.selects[edge.sourceHandle];
-            edge.type = edgeType;
-        }
-
-        return edge;
-    });
 
     const [anchorEl, setAnchorEl] = React.useState(null);
     const [test, setTest] = React.useState("test");
@@ -587,6 +598,9 @@ function Graph(props) {
         setAnchorEl(null);
     };
 
+    const open = Boolean(anchorEl);
+    const id = open ? "simple-popover" : undefined;
+
     // function downloadImage(dataUrl) {
     //     const a = document.createElement('a');
 
@@ -612,7 +626,7 @@ function Graph(props) {
 
 
     return (
-        <div style={{height: 600, width: 600, marginBottom: 100}}>
+        <div style={{height: 600, width: 1200, marginBottom: 100}}>
             <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
             <ReactFlow
                 nodes={nodes}
@@ -662,10 +676,6 @@ function Graph(props) {
                         <button id="confirmButton" onClick={onRestore}>Confirm</button></div>
                 </Popup>
 
-                {/* <div id="nodePopups" key={id}>
-                    {popupList}
-                </div> */}
-
                 {/* <div class="popup"> <button onClick={multiSelectPopUp}> Tester Node </button>
                     <span class="popuptext" id="myPopup">
                         <div class="popup" id="confirmPopup">Information about Node<br></br>
@@ -688,7 +698,7 @@ function Graph(props) {
                     }}
                 >
                     <Typography id="typography">{test}</Typography>
-                </Popover> 
+                </Popover>
             </div>
 
             {/* don't delete! experimenting to get multiple pop ups to stay on screen 
