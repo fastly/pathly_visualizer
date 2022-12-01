@@ -3,8 +3,8 @@ package service
 import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/asn"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
-	"net/netip"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
+	"net/netip"
 	"sync"
 )
 
@@ -16,12 +16,12 @@ import (
 // other services will do a mix of reading and writing. There should be one concurrency structure in here for each
 // piece of the state that can be used in isolation.
 type ApplicationState struct {
-	IpToAsn                    asn.IpToAsn
-	ipToAsnRefreshLock         sync.RWMutex
-	DestinationToProbeMap      map[netip.Addr][]*probe.Probe
-	probeCollectionRefreshLock sync.RWMutex
-	TracerouteData     traceroute.TracerouteData
-	tracerouteDataLock sync.Mutex
+	IpToAsn               asn.IpToAsn
+	ipToAsnRefreshLock    sync.RWMutex
+	DestinationToProbeMap map[netip.Addr][]*probe.Probe
+	ProbeDataLock         sync.RWMutex
+	TracerouteData        traceroute.TracerouteData
+	tracerouteDataLock    sync.Mutex
 	// etc...
 }
 

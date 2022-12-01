@@ -29,11 +29,13 @@ func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 		ctx.JSON(http.StatusOK, gin.H{"msg": reqBody})
 	})
 
-	api.GET("/probes", func(ctx *gin.Context) {
-		//ctx.JSON(http.StatusOK, state.ProbeCollection.ProbeMap)
-	})
+	api.POST("/probes", DataRoute{state}.GetProbes)
 
 	router.NoRoute(func(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{})
 	})
+}
+
+type DataRoute struct {
+	*service.ApplicationState
 }

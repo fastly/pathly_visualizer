@@ -12,7 +12,6 @@ func TestGetProbes(t *testing.T) {
 	if probeCollection.ProbeMap == nil {
 		t.Errorf("Didn't create Probe Map")
 	}
-
 }
 
 func TestGetProbesID(t *testing.T) {

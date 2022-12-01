@@ -36,9 +36,9 @@ func (service *ProbeCollectionService) Run(state *ApplicationState) error {
 
 	for {
 		//Check how much time has passed since we last updated the probes
-		state.probeCollectionRefreshLock.RLock()
+		state.ProbeDataLock.RLock()
 		timeElapsed := time.Since(service.probeCollection.GetLastRefresh())
-		state.probeCollectionRefreshLock.RUnlock()
+		state.ProbeDataLock.RUnlock()
 
 		//If it has been less than 30 minutes then be ready for probe registration
 		if timeElapsed < refreshPeriod {
@@ -93,7 +93,7 @@ func addProbeRegistration(service *ProbeCollectionService, state *ApplicationSta
 
 func getFromRipeAtlas(service *ProbeCollectionService, state *ApplicationState) {
 	//Get the probes from Ripe Atlas
-	state.probeCollectionRefreshLock.Lock()
+	state.ProbeDataLock.Lock()
 	service.probeCollection.GetProbesFromRipeAtlas()
-	state.probeCollectionRefreshLock.Unlock()
+	state.ProbeDataLock.Unlock()
 }
