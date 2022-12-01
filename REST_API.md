@@ -17,9 +17,15 @@ const Response = [
 ```
 
 ### Get probes
-`GET /api/probes`
+`POST /api/probes`
 
 ```js
+const PostBody = {
+    destinationIp: string,
+    filterAsns: null | list[int],
+    filterPrefix: null | string,
+}
+
 const Response = [
     {
         "id": int,
@@ -31,8 +37,8 @@ const Response = [
         "type": string,
         "coordinates": 
         [
-            float64,
-            float64
+            float64, //Longitude
+            float64  //Latitude
         ],
     },
     // etc.
