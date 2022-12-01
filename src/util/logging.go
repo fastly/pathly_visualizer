@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"sync/atomic"
@@ -50,4 +51,43 @@ func MakeProgressCounter(period time.Duration) ProgressCounter {
 		startTime:     time.Now(),
 		period:        period,
 	}
+}
+
+type Benchmark[T any] struct {
+	name         string
+	count        uint64
+	totalElapsed uint64
+}
+
+func MakeBenchmark[T any](name string) Benchmark[T] {
+	return Benchmark[T]{
+		name:         name,
+		count:        0,
+		totalElapsed: 0,
+	}
+}
+
+func (benchmark *Benchmark[T]) Do(action func() T) T {
+	startTime := time.Now()
+	result := action()
+	elapsed := time.Since(startTime)
+
+	atomic.AddUint64(&benchmark.count, 1)
+	atomic.AddUint64(&benchmark.totalElapsed, uint64(elapsed.Nanoseconds()))
+
+	return result
+}
+
+func (benchmark *Benchmark[T]) String() string {
+	count := atomic.LoadUint64(&benchmark.count)
+	totalElapsed := atomic.LoadUint64(&benchmark.totalElapsed)
+
+	if count == 0 {
+		return fmt.Sprintf("%s [Count: 0, Net: --, OP/S: --]", benchmark.name)
+	}
+
+	totalTime := time.Duration(totalElapsed) * time.Nanosecond
+	ops := time.Duration(totalElapsed/count) * time.Nanosecond
+
+	return fmt.Sprintf("%s [Count: %d, Net: %v, Sec/OP: %v]", benchmark.name, count, totalTime, ops)
 }
