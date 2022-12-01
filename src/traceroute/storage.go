@@ -3,6 +3,7 @@ package traceroute
 import (
 	"fmt"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
+	"log"
 	"net/netip"
 	"sync"
 	"time"
@@ -18,10 +19,24 @@ func MakeTracerouteData() TracerouteData {
 	}
 }
 
+func (tracerouteData *TracerouteData) EvictOutdatedData() {
+	var stats EvictionStats
+	evictionTime := time.Now()
+
+	for _, route := range tracerouteData.inner {
+		routeStats := route.EvictToStatisticsPeriod(evictionTime)
+		stats = stats.Add(routeStats)
+	}
+	
+	log.Println("Evicted outdated data:", stats.Nodes, "nodes,", stats.RawEdges+stats.CleanEdges, "edges")
+}
+
 func (tracerouteData *TracerouteData) getOrCreateRouteData(probeId int, destination netip.Addr) *RouteData {
 	// Create the key using the source and destination
 	key := probeDestinationPair{probeId, destination}
-	return util.MapGetOrCreate(tracerouteData.inner, key, MakeRouteData)
+	route := util.MapGetOrCreate(tracerouteData.inner, key, MakeRouteData)
+	route.probeId = probeId
+	return route
 }
 
 func (tracerouteData *TracerouteData) GetRouteData(probe int, destination netip.Addr) (*RouteData, bool) {
@@ -50,11 +65,77 @@ func getStatisticsPeriod() time.Duration {
 }
 
 type RouteData struct {
+	probeId    int
 	probeIp    netip.Addr
 	routeUsage util.MovingSummation
 	Nodes      map[NodeId]*Node
 	Edges      map[DirectedGraphEdge]*Edge
+	CleanEdges map[DirectedGraphEdge]*Edge
 	Metrics    RouteUsageMetrics
+}
+
+type EvictionStats struct {
+	Nodes      uint
+	CleanEdges uint
+	RawEdges   uint
+}
+
+func (stats EvictionStats) Add(other EvictionStats) EvictionStats {
+	stats.Nodes += other.Nodes
+	stats.RawEdges += other.RawEdges
+	stats.CleanEdges += other.CleanEdges
+
+	return stats
+}
+
+func (routeData *RouteData) EvictToStatisticsPeriod(timestamp time.Time) EvictionStats {
+	oldestAllowed := timestamp.Add(-getStatisticsPeriod())
+	routeData.Metrics.EvictMetricsUpTo(oldestAllowed)
+
+	var stats EvictionStats
+
+	for id, node := range routeData.Nodes {
+		if node.lastUsed.Before(oldestAllowed) {
+			delete(routeData.Nodes, id)
+			stats.Nodes += 1
+		}
+	}
+	for id, edge := range routeData.Edges {
+		if edge.lastUsed.Before(oldestAllowed) {
+			delete(routeData.Edges, id)
+			stats.RawEdges += 1
+		}
+	}
+	for id, edge := range routeData.CleanEdges {
+		if edge.lastUsed.Before(oldestAllowed) {
+			delete(routeData.CleanEdges, id)
+			stats.CleanEdges += 1
+		}
+	}
+
+	routeData.AlignStatisticsEndTime(timestamp)
+	return stats
+}
+
+func (routeData *RouteData) AlignStatisticsEndTime(timestamp time.Time) {
+	routeData.routeUsage.IncrementUpperBound(timestamp)
+
+	for _, node := range routeData.Nodes {
+		node.averageRtt.IncrementUpperBound(timestamp)
+		node.totalOutboundUsage.IncrementUpperBound(timestamp)
+		node.totalCleanOutboundUsage.IncrementUpperBound(timestamp)
+		node.totalUsage.IncrementUpperBound(timestamp)
+	}
+
+	for _, edge := range routeData.Edges {
+		edge.usage.IncrementUpperBound(timestamp)
+		edge.netUsage.IncrementUpperBound(timestamp)
+	}
+
+	for _, edge := range routeData.CleanEdges {
+		edge.usage.IncrementUpperBound(timestamp)
+		edge.netUsage.IncrementUpperBound(timestamp)
+	}
 }
 
 func MakeRouteData() *RouteData {
@@ -63,6 +144,7 @@ func MakeRouteData() *RouteData {
 		routeUsage: util.MakeMovingSummation(getStatisticsPeriod()),
 		Nodes:      make(map[NodeId]*Node),
 		Edges:      make(map[DirectedGraphEdge]*Edge),
+		CleanEdges: make(map[DirectedGraphEdge]*Edge),
 		Metrics:    makeRouteUsageMetrics(),
 	}
 }
@@ -99,16 +181,18 @@ type Node struct {
 	lastUsed   time.Time
 
 	// Used to determine the outboundCoverage of outbound edges
-	totalOutboundUsage util.MovingSummation
-	totalUsage         util.MovingSummation
+	totalOutboundUsage      util.MovingSummation
+	totalCleanOutboundUsage util.MovingSummation
+	totalUsage              util.MovingSummation
 }
 
 func MakeNode() *Node {
 	return &Node{
-		averageRtt:         util.MakeMovingAverage(getStatisticsPeriod()),
-		lastUsed:           time.Unix(0, 0),
-		totalOutboundUsage: util.MakeMovingSummation(getStatisticsPeriod()),
-		totalUsage:         util.MakeMovingSummation(getStatisticsPeriod()),
+		averageRtt:              util.MakeMovingAverage(getStatisticsPeriod()),
+		lastUsed:                time.Unix(0, 0),
+		totalOutboundUsage:      util.MakeMovingSummation(getStatisticsPeriod()),
+		totalCleanOutboundUsage: util.MakeMovingSummation(getStatisticsPeriod()),
+		totalUsage:              util.MakeMovingSummation(getStatisticsPeriod()),
 	}
 }
 
