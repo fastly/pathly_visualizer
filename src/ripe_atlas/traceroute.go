@@ -105,7 +105,9 @@ func updateCacheFile(measurementID int, cacheFile string) error {
 	writer := bufio.NewWriter(file)
 	defer util.CloseAndLogErrors("Failed to close cache file writer", file)
 
-	url := fmt.Sprintf("%s/%d/results?format=txt", MeasurementsUrl, measurementID)
+	startTime := time.Now().Add(-util.GetEnvDuration(util.StatisticsPeriod, 3*24*time.Hour))
+
+	url := fmt.Sprintf("%s/%d/results?format=txt&start=%d", MeasurementsUrl, measurementID, startTime.Unix())
 	res, err := http.Get(url)
 	if err != nil {
 		return err
