@@ -20,6 +20,8 @@ const (
 	// CacheDirectory and CacheStoreDuration control where and how long cached files traceroute data are stored
 	CacheDirectory     = "CACHE_DIR"
 	CacheStoreDuration = "CACHE_DURATION"
+
+	MinCleanEdgeWeight = "MIN_CLEAN_EDGE_WEIGHT"
 )
 
 // True and false variable options are taken from the YAML 1.1 standard for booleans
@@ -67,4 +69,21 @@ func GetEnvDuration(key string, fallBack time.Duration) time.Duration {
 
 	log.Println("Using", key, "of", period, "seconds")
 	return time.Duration(period) * time.Second
+}
+
+func GetEnvFloat(key string, fallBack float64) float64 {
+	value, ok := os.LookupEnv(key)
+
+	if !ok {
+		log.Println("Unable to find", key, "in .env. Using fallback value of", fallBack)
+		return fallBack
+	}
+
+	result, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		log.Printf("Expected unsigned int value for %s, but found %q. Using fallback value of %v\n", key, value, fallBack)
+		return fallBack
+	}
+
+	return result
 }

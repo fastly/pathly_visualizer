@@ -27,7 +27,7 @@ func (tracerouteData *TracerouteData) EvictOutdatedData() {
 		routeStats := route.EvictToStatisticsPeriod(evictionTime)
 		stats = stats.Add(routeStats)
 	}
-	
+
 	log.Println("Evicted outdated data:", stats.Nodes, "nodes,", stats.RawEdges+stats.CleanEdges, "edges")
 }
 
@@ -66,7 +66,7 @@ func getStatisticsPeriod() time.Duration {
 
 type RouteData struct {
 	probeId    int
-	probeIp    netip.Addr
+	probeIps   map[netip.Addr]time.Time
 	routeUsage util.MovingSummation
 	Nodes      map[NodeId]*Node
 	Edges      map[DirectedGraphEdge]*Edge
@@ -113,6 +113,12 @@ func (routeData *RouteData) EvictToStatisticsPeriod(timestamp time.Time) Evictio
 		}
 	}
 
+	for ip, lastSeen := range routeData.probeIps {
+		if lastSeen.Before(oldestAllowed) {
+			delete(routeData.probeIps, ip)
+		}
+	}
+
 	routeData.AlignStatisticsEndTime(timestamp)
 	return stats
 }
@@ -140,7 +146,7 @@ func (routeData *RouteData) AlignStatisticsEndTime(timestamp time.Time) {
 
 func MakeRouteData() *RouteData {
 	return &RouteData{
-		// probeIp: nil,
+		probeIps:   make(map[netip.Addr]time.Time),
 		routeUsage: util.MakeMovingSummation(getStatisticsPeriod()),
 		Nodes:      make(map[NodeId]*Node),
 		Edges:      make(map[DirectedGraphEdge]*Edge),
@@ -153,12 +159,16 @@ func (routeData *RouteData) GetTotalUsages() int64 {
 	return int64(routeData.routeUsage.Sum())
 }
 
-func (routeData *RouteData) GetProbeIp() netip.Addr {
-	return routeData.probeIp
+func (routeData *RouteData) GetProbeIps() (probeAddresses []netip.Addr) {
+	for ip := range routeData.probeIps {
+		probeAddresses = append(probeAddresses, ip)
+	}
+
+	return
 }
 
 func (routeData *RouteData) IsEmpty() bool {
-	return !routeData.probeIp.IsValid()
+	return len(routeData.Nodes) == 0
 }
 
 func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
@@ -210,6 +220,10 @@ func (node *Node) GetNumUsages() int64 {
 
 func (node *Node) GetOutboundUsages() int64 {
 	return int64(node.totalOutboundUsage.Sum())
+}
+
+func (node *Node) GetCleanOutboundUsages() int64 {
+	return int64(node.totalCleanOutboundUsage.Sum())
 }
 
 type NodeId struct {

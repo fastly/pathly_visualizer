@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/netip"
+	"time"
 )
 
 type tracerouteRequest struct {
@@ -78,15 +79,99 @@ func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
 	}
 
 	state.TracerouteDataLock.Lock()
-	_, ok = state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
-	state.TracerouteDataLock.Unlock()
+	defer state.TracerouteDataLock.Unlock()
+	routeData, ok := state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
 	if !ok {
 		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
 		return
 	}
 
-	// TODO: Handle this case. Currently just defer to full uncleaned version so it sends something
-	state.GetTracerouteFull(ctx)
+	if routeData.IsEmpty() {
+		ctx.String(http.StatusServiceUnavailable, "no error-free data to provide: %+v\n", request)
+		return
+	}
+
+	// Align statistics so the edge statistics make sense
+	routeData.AlignStatisticsEndTime(time.Now())
+
+	type NodeData struct {
+		Id                  string  `json:"id"`
+		Asn                 uint32  `json:"asn,omitempty"`
+		AverageRtt          float64 `json:"averageRtt"`
+		LastUsed            int64   `json:"lastUsed"`
+		AveragePathLifespan float64 `json:"averagePathLifespan"`
+	}
+
+	var nodes []NodeData
+
+	for id, storedNode := range routeData.Nodes {
+		if id.IsTimeout() {
+			continue
+		}
+
+		asn := uint32(0)
+		if foundAsn, ok := state.GetIpToAsn(id.Ip); ok {
+			asn = foundAsn
+		}
+
+		nodes = append(nodes, NodeData{
+			Id:         id.Ip.String(),
+			Asn:        asn,
+			AverageRtt: storedNode.GetAverageRtt(),
+			LastUsed:   storedNode.GetLastUsed().Unix(),
+			// TODO: Replace with occurrences in output?
+			AveragePathLifespan: 0,
+		})
+	}
+
+	type EdgeData struct {
+		Start                string  `json:"start"`
+		End                  string  `json:"end"`
+		OutboundCoverage     float64 `json:"outboundCoverage"`
+		TotalTrafficCoverage float64 `json:"totalTrafficCoverage"`
+		LastUsed             int64   `json:"lastUsed"`
+	}
+	var edges []EdgeData
+
+	// Count how many outbound edges each node has
+	parentCounts := make(map[netip.Addr]uint)
+	for endpoints := range routeData.CleanEdges {
+		if _, ok := parentCounts[endpoints.Start.Ip]; !ok {
+			parentCounts[endpoints.Start.Ip] = 0
+		}
+
+		parentCounts[endpoints.Start.Ip] = parentCounts[endpoints.Start.Ip] + 1
+	}
+
+	minEdgeWeight := util.GetEnvFloat(util.MinCleanEdgeWeight, 0.1)
+
+	for endpoints, edge := range routeData.CleanEdges {
+		outboundCoverage := float64(edge.GetUsage()) / float64(routeData.Nodes[endpoints.Start].GetCleanOutboundUsages())
+
+		minCoverage := minEdgeWeight / float64(parentCounts[endpoints.Start.Ip])
+		if outboundCoverage < minCoverage {
+			continue
+		}
+
+		edges = append(edges, EdgeData{
+			Start:                endpoints.Start.Ip.String(),
+			End:                  endpoints.Stop.Ip.String(),
+			OutboundCoverage:     outboundCoverage,
+			TotalTrafficCoverage: edge.GetNetUsage() / float64(routeData.GetTotalUsages()),
+			LastUsed:             edge.GetLastUsed().Unix(),
+		})
+	}
+
+	var probeIps []string
+	for _, ip := range routeData.GetProbeIps() {
+		probeIps = append(probeIps, ip.String())
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"probeIps": probeIps,
+		"nodes":    nodes,
+		"edges":    edges,
+	})
 }
 
 func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {
@@ -107,6 +192,9 @@ func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {
 		ctx.String(http.StatusServiceUnavailable, "no error-free data to provide: %+v\n", request)
 		return
 	}
+
+	// Align statistics so the edge statistics make sense
+	routeData.AlignStatisticsEndTime(time.Now())
 
 	type NodeId struct {
 		Ip             string `json:"ip"`
@@ -170,10 +258,18 @@ func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {
 		})
 	}
 
+	var probeIds []NodeId
+	for _, ip := range routeData.GetProbeIps() {
+		probeIds = append(probeIds, NodeId{
+			Ip:             ip.String(),
+			TimeSinceKnown: 0,
+		})
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"probeIp": routeData.GetProbeIp().String(),
-		"nodes":   nodes,
-		"edges":   edges,
+		"probeIds": probeIds,
+		"nodes":    nodes,
+		"edges":    edges,
 	})
 }
 

@@ -37,10 +37,6 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 		return
 	}
 
-	if !routeData.probeIp.IsValid() {
-		routeData.probeIp = probeIp
-	}
-
 	// Get Traceroute replies that don't contain errors
 	validReplies := filterValidReplies(measurement.TracerouteResults())
 
@@ -64,6 +60,7 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 	probeNode.averageRtt.Append(0.0, timestamp)
 	probeNode.totalUsage.Append(1.0, timestamp)
 	probeNode.lastUsed = timestamp
+	routeData.probeIps[probeIp] = timestamp
 
 	// Increment route usage
 	routeData.routeUsage.Append(1.0, timestamp)
