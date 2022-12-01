@@ -13,6 +13,11 @@ import ReactFlow, {
 } from 'reactflow';
 import dagre from 'dagre'
 import { Typography, Popover } from "@material-ui/core";
+import { toPng } from 'html-to-image';
+import * as htmlToImage from 'html-to-image';
+
+//  below nodes and edges used for testing purposes
+import { nodes as initialNodes, edges as initialEdges } from './testElements';
 
 // linking stylesheet
 import 'reactflow/dist/style.css';
@@ -193,7 +198,7 @@ function Graph(props) {
         // populate edges using response data
         for(let i = 0; i < props.response.edges.length; i++) {
             // clean traceroute data edges
-            if(props.clean){
+            if (props.clean) {
                 responseEdges.push(
                     {
                         id: props.response.edges[i].start + "-" + props.response.edges[i].end,
@@ -204,7 +209,7 @@ function Graph(props) {
                 )
             }
             // full traceroute data edges
-            else{
+            else {
                 // need to change id based on how many timeouts since known
                 let edgeSource = props.response.edges[i].start.ip
                 let edgeTarget = props.response.edges[i].end.ip
@@ -215,7 +220,7 @@ function Graph(props) {
                 if(props.response.edges[i].start.timeSinceKnown > 0) {
                     edgeSource = edgeSource + "-" + props.response.edges[i].start.timeSinceKnown
                 }
-                if(props.response.edges[i].end.timeSinceKnown > 0){
+                if (props.response.edges[i].end.timeSinceKnown > 0) {
                     edgeTarget = edgeTarget + "-" + props.response.edges[i].end.timeSinceKnown
                 }
                 responseEdges.push(
@@ -240,7 +245,7 @@ function Graph(props) {
             dagreGraph.setGraph({ rankdir: "LR" })
             // set nodes and edges in dagre graph
             nodes.forEach((node) => {
-                dagreGraph.setNode(node.id, {width: nodeWidth, height: nodeHeight})
+                dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
             })
             edges.forEach((edge) => {
                 dagreGraph.setEdge(edge.source, edge.target)
@@ -461,7 +466,7 @@ function Graph(props) {
 
     const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
-    // saves current graph state to be restored later
+    //  saves current graph state to be restored later
     const onSave = useCallback(() => {
         if (rfInstance) {
             const flow = rfInstance.toObject();
@@ -470,13 +475,13 @@ function Graph(props) {
         }
     }, [rfInstance]);
 
-    // restores saved graph state 
+    //restores saved graph state 
     const onRestore = useCallback(() => {
         const restoreFlow = async () => {
-            //parses flow data from local storage
+            // parses flow data from local storage
             const flow = JSON.parse(localStorage.getItem(flowKey));
 
-            //sets nodes, edges, and viewport using saved flow data
+            // sets nodes, edges, and viewport using saved flow data
             if (flow) {
                 const { x = 0, y = 0, zoom = 1 } = flow.viewport;
                 setNodes(flow.nodes || []);
@@ -509,7 +514,7 @@ function Graph(props) {
 
         // loop through to send requests for both ipv4 and 6
         (function loop(i, length) {
-            if(i >= length){
+            if (i >= length) {
                 return
             }
 
@@ -563,17 +568,17 @@ function Graph(props) {
                     loop(i+1, length)
                 }
             }
-    
+
             console.log(JSON.stringify(sendingObjs[i]))
             xhr.send(JSON.stringify(sendingObjs[i]))
         })(0, sendingObjs.length)
     }
 
-    // TO-DO pass smth in to determine download, save, or reset
-  
-    // MULTISELECT IN PROGRESS
-    // keep for now, might be possible way to get multiselect on nodes to work
-    const popupTester = () => {
+    // // pass smth in to determine download, save, or reset
+    // const handlePopupOnclick = () => {
+
+    // }
+    const myFunction = () => {
         var popup = document.getElementById("myPopup");
         popup.classList.toggle("show");
     }
@@ -582,20 +587,47 @@ function Graph(props) {
         selectorNode: Node
     };
 
+
+    // const onElementClick = (event, element) => {
+    //     setAnchorEl(event.currentTarget);
+    //     setTest(JSON.stringify(element.data));
+    //     setTest(element.data);
+    //     console.log(element.data)
+    //     console.log(element.selected)
+    // };
+
     const handleClose = () => {
+
         setAnchorEl(null);
     };
 
-    const open = Boolean(anchorEl);
-    const id = open ? "simple-popover" : undefined;
+    // function downloadImage(dataUrl) {
+    //     const a = document.createElement('a');
+
+    //     a.setAttribute('download', 'reactflow.png');
+    //     a.setAttribute('href', dataUrl);
+    //     a.click();
+    // }
+    // const onDownloadClick = () => {
+    //     toPng(document.querySelector('.react-flow'), {
+    //         filter: (node) => {
+    //             // we don't want to add the minimap and the controls to the image
+    //             if (
+    //                 node?.classList?.contains('react-flow__minimap') ||
+    //                 node?.classList?.contains('react-flow__controls')
+    //             ) {
+    //                 return false;
+    //             }
+
+    //             return true;
+    //         },
+    //     }).then(downloadImage);
+    // }
+
 
     return (
-        <div style={{height: 700, width: 1200, marginBottom: 100}}>
-        
-            {/* React Flow window title */}
+        <div style={{height: 600, width: 600, marginBottom: 100}}>
             <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
-
-            {/* React Flow window component */}
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -624,17 +656,13 @@ function Graph(props) {
                 <Background color="#a6b0b4" gap={16} style={{ backgroundColor: "#E8EEF1" }} />
             </ReactFlow>
 
-            {/* Buttons for React Flow Window */}
             <div className="controls">
-                
-                {/* controller for Download Raw Data button and popups */}
                 <Popup trigger={<button> Download Raw Data </button>}
                     position="top center">
                     <div id="confirmPopup">Download as .txt file?<br></br>
-                        <button onClick={getRaw}>Confirm</button></div>
+                        <button onClick={onRestore}>Confirm</button></div>
                 </Popup>
 
-                {/* controller for Save Data button and popups */}
                 <Popup trigger={<button> Save View </button>}
                     position="top center">
                     <div id="confirmPopup">Save current view?<br></br>
@@ -648,7 +676,11 @@ function Graph(props) {
                         <button id="confirmButton" onClick={onRestore}>Confirm</button></div>
                 </Popup>
 
-                {/* <div class="popup"> <button onClick={popupTester}> Tester Node </button>
+                <div id="nodePopups" key={id}>
+                    {popupList}
+                </div>
+
+                {/* <div class="popup"> <button onClick={multiSelectPopUp}> Tester Node </button>
                     <span class="popuptext" id="myPopup">
                         <div class="popup" id="confirmPopup">Information about Node<br></br>
                     </div></span>
@@ -670,9 +702,7 @@ function Graph(props) {
                     }}
                 >
                     <Typography id="typography">{test}</Typography>
-                </Popover>
-
-
+                </Popover> */
             </div>
 
             {/* don't delete! experimenting to get multiple pop ups to stay on screen 
@@ -692,5 +722,7 @@ function GraphWithProvider(props) {
         </ReactFlowProvider>
     )
 }
+
+
 
 export default GraphWithProvider

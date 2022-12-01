@@ -144,7 +144,7 @@ function App() {
       <div id="graphArea">
         {graphList}
         {/* <Graph response={tDataFull} clean={false}></Graph> */}
-        {/* <Graph response={tData} clean={true}></Graph> */}
+        <Graph response={tData} clean={true}></Graph>
       </div>
     </>
   );
