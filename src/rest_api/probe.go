@@ -10,9 +10,9 @@ import (
 
 type probeRequest struct {
 	// You only need this field
-	destinationIp string
-	filterAsns    []int
-	filterPrefix  string
+	DestinationIp string `json:"destinationIp"`
+	FilterAsns    []int  `json:"filterAsns"`
+	FilterPrefix  string `json:"filterPrefix"`
 	// Any other information for search
 }
 
@@ -23,12 +23,14 @@ func (state DataRoute) GetProbes(ctx *gin.Context) {
 	}
 
 	state.ProbeDataLock.Lock()
-	destIP, err := netip.ParseAddr(request.destinationIp)
-	if destIP, err = netip.ParseAddr(request.destinationIp); err != nil {
+	defer state.ProbeDataLock.Unlock()
+	destIP, err := netip.ParseAddr(request.DestinationIp)
+	if destIP, err = netip.ParseAddr(request.DestinationIp); err != nil {
 		ctx.String(http.StatusBadRequest, "Could not read destination IP")
+		return
 	}
-	ctx.JSONP(http.StatusOK, state.DestinationToProbeMap[destIP])
-	state.ProbeDataLock.Unlock()
+	ctx.JSON(http.StatusOK, state.DestinationToProbeMap[destIP])
+
 }
 
 func readJsonRequestBody[T any](ctx *gin.Context, limit int) (value T, ok bool) {
