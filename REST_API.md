@@ -73,7 +73,7 @@ const Response = {
     "nodes": [
         {
             "ip": string,
-            "asn": int,
+            "asn": uint32,
             "averageRtt": float,
             "lastUsed": UnixTimestamp,
             "averagePathLifespan": float, // in seconds
@@ -112,7 +112,7 @@ const Response = {
     "nodes": [
         {
             "id": NodeId,
-            "asn": int, // Optional
+            "asn": uint32, // Optional
             "averageRtt": float,
             "lastUsed": UnixTimestamp,
             "averagePathLifespan": float, // in seconds
