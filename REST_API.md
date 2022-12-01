@@ -28,7 +28,12 @@ const Response = [
         "countryCode": string,
         "asn4": uint32,
         "asn6": uint32,
-        "location": GeoJSON,
+        "type": string,
+        "coordinates": 
+        [
+            float64,
+            float64
+        ],
     },
     // etc.
 ]
