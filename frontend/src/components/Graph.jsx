@@ -16,9 +16,6 @@ import { Typography, Popover } from "@material-ui/core";
 import { toPng } from 'html-to-image';
 import * as htmlToImage from 'html-to-image';
 
-//  below nodes and edges used for testing purposes
-import { nodes as initialNodes, edges as initialEdges } from './testElements';
-
 // linking stylesheet
 import 'reactflow/dist/style.css';
 
@@ -601,6 +598,9 @@ function Graph(props) {
         setAnchorEl(null);
     };
 
+    const open = Boolean(anchorEl);
+    const id = open ? "simple-popover" : undefined;
+
     // function downloadImage(dataUrl) {
     //     const a = document.createElement('a');
 
@@ -626,7 +626,7 @@ function Graph(props) {
 
 
     return (
-        <div style={{height: 600, width: 600, marginBottom: 100}}>
+        <div style={{height: 600, width: 1200, marginBottom: 100}}>
             <h2>{props.response.probeIp} to {props.form.destinationIp}</h2>
             <ReactFlow
                 nodes={nodes}
@@ -676,10 +676,6 @@ function Graph(props) {
                         <button id="confirmButton" onClick={onRestore}>Confirm</button></div>
                 </Popup>
 
-                <div id="nodePopups" key={id}>
-                    {popupList}
-                </div>
-
                 {/* <div class="popup"> <button onClick={multiSelectPopUp}> Tester Node </button>
                     <span class="popuptext" id="myPopup">
                         <div class="popup" id="confirmPopup">Information about Node<br></br>
@@ -702,7 +698,7 @@ function Graph(props) {
                     }}
                 >
                     <Typography id="typography">{test}</Typography>
-                </Popover> */
+                </Popover>
             </div>
 
             {/* don't delete! experimenting to get multiple pop ups to stay on screen 
