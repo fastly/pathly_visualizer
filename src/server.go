@@ -5,6 +5,7 @@ import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/service"
 	"github.com/joho/godotenv"
 	"log"
+	"sync"
 )
 
 func init() {
@@ -21,16 +22,18 @@ func main() {
 	// Services should be listed here in order initialization and startup
 	services := []service.Service{
 		service.IpToAsnService{},
+		service.TracerouteDataService{},
+		rest_api.NewRestApiService(),
 		// etc...
 	}
 
 	state := service.InitApplicationState()
 
 	initServices(state, services)
-	startServices(state, services)
+	waitGroup := startServices(state, services)
 
-	// Should the rest api be treated like a regular service?
-	rest_api.StartRestApi(state)
+	// Wait for all services to exit before closing program
+	waitGroup.Wait()
 }
 
 func initServices(state *service.ApplicationState, services []service.Service) {
@@ -47,8 +50,10 @@ func initServices(state *service.ApplicationState, services []service.Service) {
 	}
 }
 
-func startServices(state *service.ApplicationState, services []service.Service) {
+func startServices(state *service.ApplicationState, services []service.Service) *sync.WaitGroup {
 	log.Println("Starting", len(services), "services")
+	waitGroup := new(sync.WaitGroup)
+	waitGroup.Add(len(services))
 
 	for _, serviceToRun := range services {
 		// Service is passed to closure as arguments since GoLand warned that direct usage may produce unexpected values
@@ -58,6 +63,9 @@ func startServices(state *service.ApplicationState, services []service.Service) 
 			// A service should run until the application is exited so any value returned would be treated as an error
 			err := service.Run(state)
 			log.Println("Service", service.Name(), "exited prematurely:", err)
+			waitGroup.Done()
 		}(serviceToRun)
 	}
+
+	return waitGroup
 }
