@@ -21,6 +21,10 @@ jobs:
       with:
         go-version: 1.19
 
+    - name: Dependencies
+      working-directory: ./src
+      run: go get -v ./...
+
     - name: Build
       working-directory: ./src
       run: go build -v ./...
