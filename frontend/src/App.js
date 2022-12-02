@@ -41,12 +41,15 @@ function App() {
 
     let done = false
 
+    let clean = document.getElementById("fullOrClean").checked
+
     let fetchUrl = "http://localhost:8080/api/traceroute/full"
-    if(document.getElementById("fullOrClean").checked){
+    if(clean){
       fetchUrl = "http://localhost:8080/api/traceroute/clean"
     }
 
     const requests = objs.map(ipObj => {
+      console.log(ipObj)
       fetch(fetchUrl, {
         method: 'POST',
         headers: {
@@ -60,9 +63,29 @@ function App() {
         combNodes.push(...data.nodes)
         combEdges.push(...data.edges)
         if(combProbeIp === ""){
-          combProbeIp = data.probeIp
+          // probeIps in clean vs. probeIds in full
+          if(clean){
+            for(const probe of data.probeIps){
+              combProbeIp += probe
+            }
+          }
+          else{
+            for(const probe of data.probeIds){
+              combProbeIp += probe.ip
+            }
+          }
         } else {
-          combProbeIp += " / " + data.probeIp
+          // probeIps in clean vs. probeIds in full
+          if(clean){
+            for(const probe of data.probeIps){
+              combProbeIp += " / " + probe
+            }
+          }
+          else{
+            for(const probe of data.probeIds){
+              combProbeIp += " / " + probe.ip
+            }
+          }
           done = true
         }
       })

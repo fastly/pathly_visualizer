@@ -19,6 +19,9 @@ import * as htmlToImage from 'html-to-image';
 // linking stylesheet
 import 'reactflow/dist/style.css';
 
+// predetermined array of colors tested for colorblindness and contrast
+import { asColors } from './ColorData';
+
 // default node width and height
 const nodeWidth = 140;
 const nodeHeight = 70;
@@ -30,6 +33,7 @@ const position = { x: 0, y: 0 }
 const flowKey = 'example-flow';
 
 let asnColorMap = new Map()
+let nxtColorArr = asColors
 
 function Graph(props) {
 
@@ -51,23 +55,45 @@ function Graph(props) {
             let probeIpSplit = props.response.probeIp.split(" / ")
             
             let asnString = undefined
+            if(currNode.asn !== undefined){
+                asnString = currNode.asn.toString()
+            }
+            let asnParent = undefined
             // verify user wants asn boxes to be rendered before defining asn boxes as parent nodes
             if(!props.asnSetting){
-                if(currNode.asn === undefined){
-                    asnString = undefined
-                }
-                else{
-                    asnString = currNode.asn.toString()
+                if(currNode.asn !== undefined){
+                    asnParent = asnString
                 }
             }
             
             // clean traceroute data nodes
             if(props.clean){
+
+                let nodeStyle = {
+                    background: '#5DCFE7'
+                }
+                //if asns by color --> set to random color
+                if(props.asnSetting){
+                    if(asnColorMap.has(asnString)){
+                        nodeStyle = asnColorMap.get(asnString)
+                    } else{
+                        if(nxtColorArr.length > 0){
+                            asnColorMap.set(asnString, nxtColorArr[0])
+                            nodeStyle = nxtColorArr[0]
+                            nxtColorArr.shift()
+                        } else{
+                            nxtColorArr = asColors
+                            asnColorMap.set(asnString, nxtColorArr[0])
+                            nodeStyle = nxtColorArr[0]
+                            nxtColorArr.shift()
+                        }
+                    }
+                }
                 
                 let nodeObj = {
-                    id: currNode.ip,
+                    id: currNode.id,
                     data: {
-                        label: currNode.ip,
+                        label: currNode.id,
                         type: 'ip',
                         asn: asnString,
                         avgRtt: currNode.averageRtt,
@@ -75,20 +101,22 @@ function Graph(props) {
                         avgPathLifespan: currNode.averagePathLifespan,
                     },
                     className: 'circle',
-                    style: {
-                        background: '#5DCFE7',
-                    },
-                    parentNode: asnString,
+                    style: nodeStyle,
+                    parentNode: asnParent,
                     extent: 'parent',
                     zIndex: 1,
                     position,
                 }
 
                 // set node to input node if the ip == starting probe ip    
-                if(probeIpSplit.includes(currNode.ip)) {
+                if(probeIpSplit.includes(currNode.id)) {
                     let inputObj = nodeObj
                     inputObj.type = 'input'
+                    inputObj.style = {
+                        background: '#B1E6D6',
+                    }
                     responseNodes.push(inputObj)
+                    
                 }
                 // if not starting probe, push as normal node without 'type: input'
                 else{
@@ -116,7 +144,7 @@ function Graph(props) {
                             style: {
                                 background: '#B1E6D6',
                             },
-                            parentNode: asnString,
+                            parentNode: asnParent,
                             extent: 'parent',
                             zIndex: 1,
                             position,
@@ -129,23 +157,33 @@ function Graph(props) {
                     let nodeId = currNode.id.ip
                     //change node color and label based on if node is timeout or not
                     let nodeLabel = nodeId
-                    let nodeColor = '#5DCFE7'
+                    let nodeStyle = {
+                        background: '#5DCFE7'
+                    }
                     // set node colors according to asn if requested
                     if(props.asnSetting){
                         if(asnColorMap.has(asnString)){
-                            nodeColor = asnColorMap.get(asnString)
+                            nodeStyle = asnColorMap.get(asnString)
                         } else{
-                            const randomColor = Math.floor(Math.random()*16777215).toString(16)
-                            asnColorMap.set(asnString, '#' + randomColor)
-                            nodeColor = randomColor
-                            console.log(asnString)
+                            if(nxtColorArr.length > 0){
+                                asnColorMap.set(asnString, nxtColorArr[0])
+                                nodeStyle = nxtColorArr[0]
+                                nxtColorArr.shift()
+                            } else{
+                                nxtColorArr = asColors
+                                asnColorMap.set(asnString, nxtColorArr[0])
+                                nodeStyle = nxtColorArr[0]
+                                nxtColorArr.shift()
+                            }
                         }
                     }
                     if(currNode.id.timeSinceKnown > 0){
                         // concat number of timeouts since known onto id
                         nodeId = nodeId + "-" + currNode.id.timeSinceKnown
                         nodeLabel = "*"
-                        nodeColor = "#E98F91"
+                        nodeStyle = {
+                            background: "#E98F91",
+                        }
                     }
                     responseNodes.push(
                         {
@@ -159,10 +197,8 @@ function Graph(props) {
                                 avgPathLifespan: currNode.averagePathLifespan,
                             },
                             className: 'circle',
-                            style: {
-                                background: nodeColor,
-                            },
-                            parentNode: asnString,
+                            style: nodeStyle,
+                            parentNode: asnParent,
                             extent: 'parent',
                             zIndex: 1,
                             position,
@@ -196,12 +232,16 @@ function Graph(props) {
         for(let i = 0; i < props.response.edges.length; i++) {
             // clean traceroute data edges
             if (props.clean) {
+                let labelWeight = (props.response.edges[i].outboundCoverage * 100).toString() + "%"
+                let lineWeight = (props.response.edges[i].outboundCoverage).toString() + "%"
                 responseEdges.push(
                     {
                         id: props.response.edges[i].start + "-" + props.response.edges[i].end,
                         source: props.response.edges[i].start,
                         target: props.response.edges[i].end,
-                        // Add more down here about line weight, etc.
+                        label: labelWeight,
+                        style: {strokeWidth: lineWeight},
+                        zIndex: 1,
                     }
                 )
             }
@@ -244,10 +284,12 @@ function Graph(props) {
             nodes.forEach((node) => {
                 dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
             })
-            edges.forEach((edge) => {
-                dagreGraph.setEdge(edge.source, edge.target)
-            })
-            
+            if(!(edges === undefined)){
+                edges.forEach((edge) => {
+                    dagreGraph.setEdge(edge.source, edge.target)
+                })
+            }
+
             dagre.layout(dagreGraph)
 
             // loop through each node
@@ -372,7 +414,9 @@ function Graph(props) {
                 let currAsnEdges = resEdgesAsnMap.get(asn)
                 let asnLayout = getLayout(currAsnNodes, currAsnEdges)
                 lNodes.push(...asnLayout.nodes)
-                lEdges.push(...asnLayout.edges)
+                if(asnLayout.edges !== undefined){
+                    lEdges.push(...asnLayout.edges)
+                }
                 if(asn !== undefined){
                     asnSizeMap.set(asn, getRectOfNodes(asnLayout.nodes))
                 }
@@ -402,6 +446,7 @@ function Graph(props) {
     // need these for graph props later
     // use layout nodes and edges from auto layout function
     const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+    console.log(nodes)
     const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
     const [rfInstance, setRfInstance] = useState(null);
     const { setViewport } = useReactFlow();
