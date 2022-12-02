@@ -8,7 +8,7 @@ import (
 )
 
 // ProbeCollectionRefreshPeriod We want to refresh the probes that we have every 30 minutes
-const DefaultProbeCollectionRefreshPeriod = 30 * time.Minute
+const DefaultProbeCollectionRefreshPeriod = 24 * time.Hour
 
 type ProbeCollectionService struct {
 	probeCollection          probe.ProbeCollection
