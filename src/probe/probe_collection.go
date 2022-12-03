@@ -55,8 +55,10 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 		return
 	}
 	defer util.CloseAndLogErrors("Probes from Ripe Atlas", responseProbe.Body)
+	//Total number of CPU for distributing work
+	numberOfCPUs := runtime.NumCPU()
 	totalPages := (pageCountResponse.Count + 99) / 100
-	pagesPerCPU := totalPages / runtime.NumCPU()
+	pagesPerCPU := totalPages / numberOfCPUs
 
 	//Create a wait group
 	var wg sync.WaitGroup
@@ -70,10 +72,9 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	atlas := ripeatlas.Atlaser(ripeatlas.NewHttp())
 
 	//Add the number of workers to the waitgroup
-	wg.Add(runtime.NumCPU())
+	wg.Add(numberOfCPUs)
 	//Create number of go routines equal to number of CPU cores
-	for i := 0; i < runtime.NumCPU(); i++ {
-
+	for i := 0; i < numberOfCPUs; i++ {
 		//Each CPU core will handle multiple pages
 		go func(currentCore int) {
 			//The starting Page for each CPU core
@@ -130,15 +131,6 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 			})
 		}(i)
 	}
-
-	//Wait until all the routines are done and close the channel
-	go func() {
-		wg.Wait()
-		once.Do(func() {
-			close(probeChannel)
-			probeCollection.LastRefresh = time.Now()
-		})
-	}()
 
 	//Add each probe from the channel and add it to our main list
 	for p := range probeChannel {

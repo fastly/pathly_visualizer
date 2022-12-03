@@ -31,7 +31,6 @@ func (service *ProbeCollectionService) Init(state *ApplicationState) (err error)
 }
 
 func (service *ProbeCollectionService) Run(state *ApplicationState) error {
-
 	refreshPeriod := util.GetEnvDuration(util.ProbeCollectionRefreshPeriod, DefaultProbeCollectionRefreshPeriod)
 
 	for {
@@ -40,7 +39,7 @@ func (service *ProbeCollectionService) Run(state *ApplicationState) error {
 		timeElapsed := time.Since(service.probeCollection.GetLastRefresh())
 		state.ProbeDataLock.RUnlock()
 
-		//If it has been less than 30 minutes then be ready for probe registration
+		//If it has been less than Refresh Period then be ready for probe registration
 		if timeElapsed < refreshPeriod {
 			timeLeft := refreshPeriod - timeElapsed
 			checkWithinElapsed(service, state, timeLeft)
