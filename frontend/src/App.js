@@ -60,8 +60,8 @@ function App() {
       .then((response) => response.json())
       .then((data) => {
         console.log(data)
-        combNodes.push(data.nodes)
-        combEdges.push(data.edges)
+        combNodes.push(...data.nodes)
+        combEdges.push(...data.edges)
         if(combProbeIp === ""){
           // probeIps in clean vs. probeIds in full
           if(clean){

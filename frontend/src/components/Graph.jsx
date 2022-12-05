@@ -729,8 +729,8 @@ function Graph(props) {
 
                 {/* component for popups within React Flow window */}
                 <Popover
-                    id={this.asn.toString()}
-                    open={this.state.open}
+                    id={id}
+                    open={open}
                     anchorEl={anchorEl}
                     onClose={handleClose}
                     anchorOrigin={{
