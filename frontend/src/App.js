@@ -125,6 +125,38 @@ function App() {
     return formObjs
   }
 
+  // fetch probes based on current destination ip
+  const fetchProbes = (e) => {
+    e.preventDefault()
+    let destIP = document.getElementById("destIP").value
+
+    let ipSplit = destIP.split(" / ")
+
+    let ipObjs = []
+    for(const ip of ipSplit){
+      const obj = {
+        destinationIp: ip,
+      }
+      ipObjs.push(obj)
+    }
+
+    const requests = ipObjs.map(obj => {
+      console.log(obj)
+      let fetchUrl = "http://localhost:8080/api/probes"
+      fetch(fetchUrl, {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(obj),
+      })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log(data)
+      })
+    })
+  }
+
 
 
   return (
@@ -133,17 +165,17 @@ function App() {
         {/* FORM FOR COLLECTING DATA FROM BACKEND STORAGE HERE */}
         <h1>CREATE VISUALIZATION</h1>
         <form id="postForm" onSubmit={search}>
-        <label for="src">Source Probe</label>
-          <input id= "srcProbe" name="probeId" placeholder="e.g. 123456" required></input>
-          <br></br>
           {/* Using list of measurements sds suggested to start from */}
           <label for="dst">Destination IP</label>
-          <select id="destIP" name="destinationIp" placeholder="Destination IP" required>
+          <select id="destIP" name="destinationIp" placeholder="Destination IP" onChange={fetchProbes} required>
           <option hidden> Select IP Address</option>
             <optgroup label="fastly anycast">
               <option value="151.101.0.1 / 2a04:4e42::1">151.101.0.1 / 2a04:4e42::1</option>
             </optgroup>
           </select>
+          <br></br>
+          <label for="src">Source Probe</label>
+          <input id= "srcProbe" name="probeId" placeholder="e.g. 123456" required></input>
           <br></br>
           <div className="switchBox">
             <p>Full Data</p>
