@@ -16,7 +16,7 @@ import { Typography, Popover } from "@material-ui/core";
 import { toPng } from 'html-to-image';
 import * as htmlToImage from 'html-to-image';
 
-// linking stylesheet
+// linking reactflow stylesheet
 import 'reactflow/dist/style.css';
 
 // predetermined array of colors tested for colorblindness and contrast
