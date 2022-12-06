@@ -3,7 +3,6 @@ package util
 import (
 	"errors"
 	"io"
-	"math"
 	"os"
 )
 
@@ -55,7 +54,7 @@ func ReadAtMost(r io.Reader, limit int) ([]byte, error) {
 			// Add more capacity (let append pick how much).
 			b = append(b, 0)[:len(b)]
 		}
-		n, err := r.Read(b[len(b):int(math.Min(float64(limit), float64(cap(b))))])
+		n, err := r.Read(b[len(b):min(limit, cap(b))])
 		b = b[:len(b)+n]
 		if err != nil {
 			if err == io.EOF {

@@ -19,12 +19,8 @@ type ProbeCollection struct {
 	LastRefresh time.Time
 }
 
-//Take in a struct channel
-// Probe ID
-// Destination IP
-// Probe registration channel
-
 const ProbePage string = "https://atlas.ripe.net/api/v2/probes/?format=json"
+const MaxProbeChannelLimit = 64
 
 func MakeProbeCollection() ProbeCollection {
 	return ProbeCollection{
@@ -65,7 +61,7 @@ func (probeCollection *ProbeCollection) GetProbesFromRipeAtlas() {
 	var once sync.Once
 
 	//Create channel that each routine will send a probe to
-	probeChannel := make(chan Probe, 64)
+	probeChannel := make(chan Probe, MaxProbeChannelLimit)
 
 	// Read Atlas results using REST API
 	//This struct is safe to share across threads and use concurrently
