@@ -50,8 +50,6 @@ loop:
 				continue
 			}
 
-			state.BootstrapCollectProbeInfo(msg)
-
 			// Increment the progress counter so it knows how many messages have been received when calling the periodic
 			// function.
 			progressCounter.Increment()

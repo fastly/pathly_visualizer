@@ -23,7 +23,7 @@ type ApplicationState struct {
 	ProbeDataLock         sync.RWMutex
 
 	TracerouteData     traceroute.TracerouteData
-	tracerouteDataLock sync.Mutex
+	TracerouteDataLock sync.Mutex
 }
 
 // InitApplicationState created the initial state to use upon the start of the application. This function is
