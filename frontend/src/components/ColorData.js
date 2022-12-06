@@ -1,42 +1,42 @@
 export const asColors = [
     {
-        background: '#E2DBD1',
-        color: 'black',
+        background: '#3366CC',
+        color: 'white',
     },
     {
         background: '#44AA99',
-        color: 'black',
-    },
-    {
-        background: '#DDCC77',
-        color: 'black',
-    },
-    {
-        background: '#CC6677',
-        color: 'black',
-    },
-    {
-        background: '#332288',
         color: 'white',
     },
     {
-        background: '#117733',
+        background: '#109618',
         color: 'white',
     },
     {
-        background: '#999933',
-        color: 'black',
-    },
-    {
-        background: '#882255',
+        background: '#990099',
         color: 'white',
     },
     {
-        background: '#88CCEE',
-        color: 'black',
+        background: '#0099C6',
+        color: 'white',
     },
     {
-        background: '#AA4499',
+        background: '#DD4477',
+        color: 'white',
+    },
+    {
+        background: '#66AA00',
+        color: 'white',
+    },
+    {
+        background: '#B82E2E',
+        color: 'white',
+    },
+    {
+        background: '#316395',
+        color: 'white',
+    },
+    {
+        background: '#994499',
         color: 'white',
     },   
 ]
