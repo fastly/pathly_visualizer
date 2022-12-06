@@ -13,8 +13,6 @@ import ReactFlow, {
 } from 'reactflow';
 import dagre from 'dagre'
 import { Typography, Popover } from "@material-ui/core";
-import { toPng } from 'html-to-image';
-import * as htmlToImage from 'html-to-image';
 
 // linking reactflow stylesheet
 import 'reactflow/dist/style.css';
@@ -573,6 +571,8 @@ function Graph(props) {
                     
                     if(disp && disp.indexOf('attachment') !== -1){
                         let filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        console.log(filename)
+                        console.log(filenameRegex)
                         let matches = filenameRegex.exec(disp);
                         if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
                     }
@@ -597,8 +597,9 @@ function Graph(props) {
                                 a.click()
                             }
                         }
+                        // if can't download, open in new page
                         else {
-                            window.location.href = downloadUrl
+                            window.open(downloadUrl, '_blank') 
                         }
 
                         //cleanup 
@@ -705,7 +706,7 @@ function Graph(props) {
                 <Popup trigger={<button> Download Raw Data </button>}
                     position="top center">
                     <div id="confirmPopup">Download as .txt file?<br></br>
-                        <button onClick={onRestore}>Confirm</button></div>
+                        <button onClick={getRaw}>Confirm</button></div>
                 </Popup>
 
                 <Popup trigger={<button> Save View </button>}

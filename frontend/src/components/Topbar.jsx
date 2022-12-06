@@ -4,18 +4,21 @@ import Navbar from 'react-bootstrap/Navbar';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-function LogoDropdown() {
+// top navbar component
+
+function Topbar() {
 
     return(
         <Navbar bg='light' expand='lg'>
             <Container>
-                <Navbar.Brand><span style={{color: '#AA0000'}}>PATH</span>ly Visualizer</Navbar.Brand>
+                <Navbar.Brand href=""><span style={{color: '#AA0000'}}>PATH</span>ly Visualizer</Navbar.Brand>
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                 <Nav className="me-auto">
                     <Nav.Link href="">Edit Measurements</Nav.Link>
                     <Nav.Link href="https://atlas.ripe.net/">Ripe Atlas</Nav.Link>
                     <Nav.Link href="https://github.com/jmeggitt/fastly_anycast_experiments">Source Code</Nav.Link>
+                    <Nav.Link href="">About</Nav.Link>
                 </Nav>
                 </Navbar.Collapse>
             </Container>
@@ -23,4 +26,4 @@ function LogoDropdown() {
     )
 }
 
-export default LogoDropdown
+export default Topbar
