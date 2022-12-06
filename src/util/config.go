@@ -22,6 +22,8 @@ const (
 	CacheStoreDuration = "CACHE_DURATION"
 
 	MinCleanEdgeWeight = "MIN_CLEAN_EDGE_WEIGHT"
+
+	ProbeCollectionRefreshPeriod = "PROBE_COLLECTION_REFRESH_PERIOD"
 )
 
 // True and false variable options are taken from the YAML 1.1 standard for booleans

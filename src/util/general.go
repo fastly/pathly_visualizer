@@ -7,6 +7,9 @@ import (
 )
 
 const defaultCacheDir = ".cache"
+const defaultByteLimit = 512
+
+var ErrMessageTooLong = errors.New("message is too long")
 
 func GetCacheDir() (string, error) {
 	cachePath, ok := os.LookupEnv(CacheDirectory)
@@ -34,8 +37,6 @@ func MapGetOrCreate[K comparable, V any](data map[K]V, key K, init func() V) V {
 	return value
 }
 
-var ErrMessageTooLong = errors.New("message is too long")
-
 func min(a, b int) int {
 	if a > b {
 		return b
@@ -44,7 +45,8 @@ func min(a, b int) int {
 }
 
 func ReadAtMost(r io.Reader, limit int) ([]byte, error) {
-	b := make([]byte, 0, min(512, limit))
+	b := make([]byte, 0, min(defaultByteLimit, limit))
+
 	for {
 		if len(b) >= limit {
 			return b, ErrMessageTooLong
