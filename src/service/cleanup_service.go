@@ -10,6 +10,6 @@ func (CleanupService) Init(state *ApplicationState) (err error) {
 	return
 }
 
-func (CleanupService) Run(state *ApplicationState) (err error) {
+func (service CleanupService) Run(state *ApplicationState) (err error) {
 	return
 }
