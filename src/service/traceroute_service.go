@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/DNS-OARC/ripeatlas/measurement"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/ripe_atlas"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
@@ -21,7 +22,7 @@ func (TracerouteDataService) Init(state *ApplicationState) (err error) {
 }
 
 func (TracerouteDataService) handleIncomingMessages(state *ApplicationState, channel <-chan *measurement.Result) {
-	logProgress := util.IsEnvFlagSet(util.LogTracerouteProgress)
+	logProgress := config.LogTracerouteProgress.GetAsFlag()
 	// The progress counter is a debugging tool which will periodically call the Periodic function with the number of
 	// times that it has been invoked. This helps show that the program is receiving messages and is not stuck in an
 	// invalid state.

@@ -15,7 +15,7 @@ type probeRequest struct {
 }
 
 func (state DataRoute) GetProbes(ctx *gin.Context) {
-	if request, ok := readJsonRequestBody[probeRequest](ctx, 512); !ok {
+	if request, ok := readJsonRequestBody[probeRequest](ctx); !ok {
 		return
 	} else {
 		state.ProbeDataLock.Lock()

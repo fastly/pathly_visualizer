@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/DNS-OARC/ripeatlas"
 	"github.com/DNS-OARC/ripeatlas/measurement"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"io"
 	"log"
@@ -103,7 +104,7 @@ func updateCacheFile(measurementID int, cacheFile string) error {
 	writer := bufio.NewWriter(file)
 	defer util.CloseAndLogErrors("Failed to close cache file writer", file)
 
-	startTime := time.Now().Add(-util.GetEnvDuration(util.StatisticsPeriod, util.DefaultStatisticsPeriod))
+	startTime := time.Now().Add(-config.StatisticsPeriod.GetDuration())
 
 	url := fmt.Sprintf("%s/%d/results?format=txt&start=%d", MeasurementsUrl, measurementID, startTime.Unix())
 	res, err := http.Get(url)
@@ -133,8 +134,7 @@ func CachedGetTraceRouteData(measurementID int) (channel <-chan *measurement.Res
 		return
 	}
 
-	cacheDuration := util.GetEnvDuration(util.CacheStoreDuration, util.DefaultCacheStoreDuration)
-	log.Println("Using cache duration of", cacheDuration)
+	cacheDuration := config.CacheStoreDuration.GetDuration()
 
 	if err != nil || stat.ModTime().Add(cacheDuration).Before(time.Now()) {
 		log.Println("Refreshing cache entry for measurement", measurementID)

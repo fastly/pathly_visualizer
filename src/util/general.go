@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"io"
 	"os"
 )
@@ -9,16 +10,13 @@ import (
 var ErrMessageTooLong = errors.New("message is too long")
 
 func GetCacheDir() (string, error) {
-	cachePath, ok := os.LookupEnv(CacheDirectory)
-	if !ok {
-		cachePath = DefaultCacheDirectory
-	}
+	cachePath := config.CacheDirectory.GetString()
 
 	stat, err := os.Stat(cachePath)
 	if err != nil && os.IsNotExist(err) {
 		err = os.MkdirAll(cachePath, os.ModePerm)
 	} else if err == nil && !stat.IsDir() {
-		err = errors.New(CacheDirectory + " must point to a directory")
+		err = errors.New("cache path is not directory")
 	}
 
 	return cachePath, err
@@ -42,7 +40,9 @@ func min(a, b int) int {
 }
 
 func ReadAtMost(r io.Reader, limit int) ([]byte, error) {
-	b := make([]byte, 0, min(DefaultRequestByteLimit, limit))
+	// Initialize buffer to at most the size of a single page of memory for efficiency while reading. On most systems
+	// this is 4096, 16384, or 65536.
+	b := make([]byte, 0, min(os.Getpagesize(), limit))
 
 	for {
 		if len(b) >= limit {

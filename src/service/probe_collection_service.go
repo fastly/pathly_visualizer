@@ -1,8 +1,8 @@
 package service
 
 import (
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
-	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"net/netip"
 	"time"
 )
@@ -28,7 +28,7 @@ func (service *ProbeCollectionService) Init(state *ApplicationState) (err error)
 }
 
 func (service *ProbeCollectionService) Run(state *ApplicationState) error {
-	refreshPeriod := util.GetEnvDuration(util.ProbeCollectionRefreshPeriod, util.DefaultProbeCollectionRefreshPeriod)
+	refreshPeriod := config.ProbeCollectionRefreshPeriod.GetDuration()
 
 	for {
 		//Check how much time has passed since we last updated the probes

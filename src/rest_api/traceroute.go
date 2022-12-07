@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/ripe_atlas"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"io"
@@ -18,7 +19,7 @@ type tracerouteRequest struct {
 }
 
 func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
-	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx)
 	if !ok {
 		return
 	}
@@ -74,7 +75,7 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 }
 
 func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
-	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx)
 	if !ok {
 		return
 	}
@@ -144,7 +145,7 @@ func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
 		parentCounts[endpoints.Start.Ip] = parentCounts[endpoints.Start.Ip] + 1
 	}
 
-	minEdgeWeight := util.GetEnvFloat(util.MinCleanEdgeWeight, 0.1)
+	minEdgeWeight := config.MinCleanEdgeWeight.GetFloat()
 
 	for endpoints, edge := range routeData.CleanEdges {
 		outboundCoverage := float64(edge.GetUsage()) / float64(routeData.Nodes[endpoints.Start].GetCleanOutboundUsages())
@@ -176,7 +177,7 @@ func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
 }
 
 func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {
-	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx)
 	if !ok {
 		return
 	}
@@ -289,8 +290,9 @@ func (request *tracerouteRequest) UnmarshalJSON(bytes []byte) (err error) {
 	return
 }
 
-func readJsonRequestBody[T any](ctx *gin.Context, limit int) (value T, ok bool) {
-	requestBytes, err := util.ReadAtMost(ctx.Request.Body, limit)
+func readJsonRequestBody[T any](ctx *gin.Context) (value T, ok bool) {
+	requestSizeLimit := config.RequestByteLimit.GetInt()
+	requestBytes, err := util.ReadAtMost(ctx.Request.Body, requestSizeLimit)
 	if err != nil {
 		if err == util.ErrMessageTooLong {
 			ctx.String(http.StatusBadRequest, "Request too long\n")
