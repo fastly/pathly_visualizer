@@ -3,6 +3,7 @@ package traceroute
 import (
 	"github.com/DNS-OARC/ripeatlas/measurement"
 	"github.com/DNS-OARC/ripeatlas/measurement/traceroute"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"log"
 	"net/netip"
 	"sort"
@@ -36,10 +37,6 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 		return
 	}
 
-	if !routeData.probeIp.IsValid() {
-		routeData.probeIp = probeIp
-	}
-
 	// Get Traceroute replies that don't contain errors
 	validReplies := filterValidReplies(measurement.TracerouteResults())
 
@@ -50,6 +47,7 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 	timestamp := time.Unix(int64(measurement.Timestamp()), 0)
 	routeData.addNodesToGraph(probeIp, validReplies, timestamp)
 	routeData.addEdgesToGraph(internalFormat, timestamp)
+	routeData.addCleanEdgesToGraph(internalFormat, timestamp)
 
 	probeNode := routeData.getOrCreateNode(NodeId{
 		Ip:                 probeIp,
@@ -62,9 +60,13 @@ func (routeData *RouteData) AppendMeasurement(measurement *measurement.Result) {
 	probeNode.averageRtt.Append(0.0, timestamp)
 	probeNode.totalUsage.Append(1.0, timestamp)
 	probeNode.lastUsed = timestamp
+	routeData.probeIps[probeIp] = timestamp
 
 	// Increment route usage
 	routeData.routeUsage.Append(1.0, timestamp)
+
+	// Add metrics for route
+	routeData.Metrics.AppendMeasurement(measurement)
 }
 
 func uniqueNodeIdsForLayer(replies []*traceroute.Reply, prevLayerCount int) int {
@@ -183,6 +185,45 @@ func (routeData *RouteData) addEdgesToGraph(res [][]NodeId, timestamp time.Time)
 		}
 
 		previousHop = nextHop
+	}
+}
+func (routeData *RouteData) addCleanEdgesToGraph(res [][]NodeId, timestamp time.Time) {
+	previousLayer := res[0]
+
+	for _, nextHop := range res[1:] {
+		var nextLayer []NodeId
+		for _, id := range nextHop {
+			if !id.IsTimeout() {
+				nextLayer = append(nextLayer, id)
+			}
+		}
+
+		if len(nextLayer) == 0 {
+			continue
+		}
+
+		//Set the edges from the Cartesian product of the previous hop and the next hop
+		for _, src := range previousLayer {
+			for _, dst := range nextLayer {
+				edgeKey := DirectedGraphEdge{
+					Start: src,
+					Stop:  dst,
+				}
+
+				targetEdge := util.MapGetOrCreate(routeData.CleanEdges, edgeKey, MakeEdge)
+
+				//Update the last used attribute to this measurement's timestamp if it is newer
+				if targetEdge.lastUsed.Before(timestamp) {
+					targetEdge.lastUsed = timestamp
+				}
+
+				routeData.getOrCreateNode(src).totalCleanOutboundUsage.Append(1.0, timestamp)
+				targetEdge.usage.Append(1.0, timestamp)
+				targetEdge.netUsage.Append(1.0/float64(len(nextHop)), timestamp)
+			}
+		}
+
+		previousLayer = nextLayer
 	}
 }
 
