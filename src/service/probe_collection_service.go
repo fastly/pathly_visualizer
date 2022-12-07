@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// ProbeCollectionRefreshPeriod We want to refresh the probes that we have every 30 minutes
-const DefaultProbeCollectionRefreshPeriod = 24 * time.Hour
-
 type ProbeCollectionService struct {
 	probeCollection          probe.ProbeCollection
 	probeRegistrationChannel chan probe.ProbeRegistration
@@ -31,7 +28,7 @@ func (service *ProbeCollectionService) Init(state *ApplicationState) (err error)
 }
 
 func (service *ProbeCollectionService) Run(state *ApplicationState) error {
-	refreshPeriod := util.GetEnvDuration(util.ProbeCollectionRefreshPeriod, DefaultProbeCollectionRefreshPeriod)
+	refreshPeriod := util.GetEnvDuration(util.ProbeCollectionRefreshPeriod, util.DefaultProbeCollectionRefreshPeriod)
 
 	for {
 		//Check how much time has passed since we last updated the probes

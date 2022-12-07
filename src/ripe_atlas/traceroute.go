@@ -24,8 +24,6 @@ const stopParam = "stop"
 const typeParam = "type"
 const msmParam = "msm"
 
-const DefaultCacheDuration = 12 * time.Hour
-
 func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]measurement.Result, error) {
 	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
 	channel, err := a.MeasurementResults(ripeatlas.Params{pkParam: measurementID, startParam: startTime, stopParam: endTime})
@@ -105,7 +103,7 @@ func updateCacheFile(measurementID int, cacheFile string) error {
 	writer := bufio.NewWriter(file)
 	defer util.CloseAndLogErrors("Failed to close cache file writer", file)
 
-	startTime := time.Now().Add(-util.GetEnvDuration(util.StatisticsPeriod, 3*24*time.Hour))
+	startTime := time.Now().Add(-util.GetEnvDuration(util.StatisticsPeriod, util.DefaultStatisticsPeriod))
 
 	url := fmt.Sprintf("%s/%d/results?format=txt&start=%d", MeasurementsUrl, measurementID, startTime.Unix())
 	res, err := http.Get(url)
@@ -135,7 +133,7 @@ func CachedGetTraceRouteData(measurementID int) (channel <-chan *measurement.Res
 		return
 	}
 
-	cacheDuration := util.GetEnvDuration(util.CacheStoreDuration, DefaultCacheDuration)
+	cacheDuration := util.GetEnvDuration(util.CacheStoreDuration, util.DefaultCacheStoreDuration)
 	log.Println("Using cache duration of", cacheDuration)
 
 	if err != nil || stat.ModTime().Add(cacheDuration).Before(time.Now()) {

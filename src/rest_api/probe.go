@@ -6,8 +6,6 @@ import (
 	"net/netip"
 )
 
-const defaultByteLimit = 512
-
 type probeRequest struct {
 	// You only need this field
 	DestinationIp string `json:"destinationIp"`
@@ -17,7 +15,7 @@ type probeRequest struct {
 }
 
 func (state DataRoute) GetProbes(ctx *gin.Context) {
-	if request, ok := readJsonRequestBody[probeRequest](ctx, defaultByteLimit); !ok {
+	if request, ok := readJsonRequestBody[probeRequest](ctx, 512); !ok {
 		return
 	} else {
 		state.ProbeDataLock.Lock()

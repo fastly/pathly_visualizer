@@ -25,7 +25,6 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 
 	state.TracerouteDataLock.Lock()
 	routeData, ok := state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
-	state.TracerouteDataLock.Unlock()
 	if !ok {
 		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
 		return
@@ -33,11 +32,13 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 
 	var dataUrls []string
 	for measurement, timeRange := range routeData.Metrics.MeasurementRanges {
-		url := fmt.Sprintf("%s/%d/results?format=txt&start=%d&stop=%d",
-			ripe_atlas.MeasurementsUrl, measurement, timeRange.Start.Unix(), timeRange.End.Unix())
+		url := fmt.Sprintf("%s/%d/results?format=txt&start=%d&stop=%d&probe_ids=%d",
+			ripe_atlas.MeasurementsUrl, measurement, timeRange.Start.Unix(), timeRange.End.Unix(), request.ProbeId)
 
 		dataUrls = append(dataUrls, url)
 	}
+
+	state.TracerouteDataLock.Unlock()
 
 	// If possible redirect to RIPE Atlas
 	if len(dataUrls) == 1 {
