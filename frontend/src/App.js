@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './App.css';
 import Graph from './components/Graph';
-import LogoDropdown from './components/LogoDropdown';
+import Topbar from './components/Topbar';
 
 //test data for graph population
 import {tData} from './components/test_data/testTrcrt'
@@ -162,7 +162,7 @@ function App() {
 
   return (
     <>
-      <LogoDropdown></LogoDropdown>
+      <Topbar></Topbar>
       <div className="App">
         {/* FORM FOR COLLECTING DATA FROM BACKEND STORAGE HERE */}
         <h1>CREATE VISUALIZATION</h1>

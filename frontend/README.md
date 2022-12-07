@@ -6,9 +6,13 @@ This section will show off the important portions in the front end's file struct
 ├── public //what's visible to the user
 └── src
     ├── components //React functional components --> reuse code, ease up on readability
+    |   └── test_data //All test data used when testing ReactFlow library
     ├── App.js //Main page --> houses form and is where graphs are represented
     └── package.json //Includes important dependency downloads and scripts --> scripts and what they do can be seen below
 ``` 
+
+### `npm install --legacy-peer-deps`
+Installs all necessary node_modules required to run the project
 
 ### `npm start`
 
