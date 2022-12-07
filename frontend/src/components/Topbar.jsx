@@ -9,16 +9,16 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 function Topbar() {
 
     return(
-        <Navbar bg='light' expand='lg'>
+        <Navbar bg='light' expand='lg' style={{zIndex: 1}}>
             <Container>
-                <Navbar.Brand href=""><span style={{color: '#AA0000'}}>PATH</span>ly Visualizer</Navbar.Brand>
+                <Navbar.Brand href="/"><img src={require("./images/pathly_logo.png")} width={120}></img></Navbar.Brand>
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                 <Nav className="me-auto">
-                    <Nav.Link href="">Edit Measurements</Nav.Link>
+                    <Nav.Link href="/edit">Edit Measurements</Nav.Link>
                     <Nav.Link href="https://atlas.ripe.net/">Ripe Atlas</Nav.Link>
                     <Nav.Link href="https://github.com/jmeggitt/fastly_anycast_experiments">Source Code</Nav.Link>
-                    <Nav.Link href="">About</Nav.Link>
+                    <Nav.Link href="/about">About</Nav.Link>
                 </Nav>
                 </Navbar.Collapse>
             </Container>
