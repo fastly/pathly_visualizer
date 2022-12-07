@@ -19,7 +19,7 @@ type ApplicationState struct {
 	IpToAsn            asn.IpToAsn
 	ipToAsnRefreshLock sync.RWMutex
 
-	DestinationToProbeMap map[netip.Addr][]*probe.Probe
+	DestinationToProbeMap map[netip.Addr][]*probe.ProbeWithinDestination
 	ProbeDataLock         sync.RWMutex
 
 	TracerouteData     traceroute.TracerouteData

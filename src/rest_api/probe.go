@@ -2,6 +2,7 @@ package rest_api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
 	"net/http"
 	"net/netip"
 )
@@ -25,6 +26,14 @@ func (state DataRoute) GetProbes(ctx *gin.Context) {
 			ctx.String(http.StatusBadRequest, "Could not read destination IP")
 			return
 		}
-		ctx.JSON(http.StatusOK, state.DestinationToProbeMap[destIP])
+		//Get the list of probes
+		probesFromAddress := state.DestinationToProbeMap[destIP]
+		var finalProbeList []*probe.Probe
+
+		for _, probeDestination := range probesFromAddress {
+			finalProbeList = append(finalProbeList, probeDestination.Probe)
+		}
+
+		ctx.JSON(http.StatusOK, finalProbeList)
 	}
 }
