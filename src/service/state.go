@@ -2,7 +2,9 @@ package service
 
 import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/asn"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
+	"net/netip"
 	"sync"
 )
 
@@ -16,12 +18,12 @@ import (
 type ApplicationState struct {
 	IpToAsn            asn.IpToAsn
 	ipToAsnRefreshLock sync.RWMutex
+
+	DestinationToProbeMap map[netip.Addr][]*probe.Probe
+	ProbeDataLock         sync.RWMutex
+
 	TracerouteData     traceroute.TracerouteData
 	TracerouteDataLock sync.Mutex
-
-	ProbeData     map[int]*ProbeInfo
-	ProbeDataLock sync.RWMutex
-	// etc...
 }
 
 // InitApplicationState created the initial state to use upon the start of the application. This function is

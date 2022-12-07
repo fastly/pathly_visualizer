@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/ripe_atlas"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"io"
@@ -12,32 +13,43 @@ import (
 	"time"
 )
 
+// HTTP Headers we manually set
+const (
+	HeaderContentType        = "Content-Type"
+	HeaderContentDisposition = "Content-Disposition"
+)
+
+// MimeOctetStream is the MIME type for raw binary data
+const MimeOctetStream = "application/octet-stream"
+
 type tracerouteRequest struct {
 	ProbeId       int
 	DestinationIp netip.Addr
 }
 
 func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
-	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx)
 	if !ok {
 		return
 	}
 
 	state.TracerouteDataLock.Lock()
 	routeData, ok := state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
-	state.TracerouteDataLock.Unlock()
 	if !ok {
+		state.TracerouteDataLock.Unlock()
 		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
 		return
 	}
 
 	var dataUrls []string
 	for measurement, timeRange := range routeData.Metrics.MeasurementRanges {
-		url := fmt.Sprintf("%s/%d/results?format=txt&start=%d&stop=%d",
-			ripe_atlas.MeasurementsUrl, measurement, timeRange.Start.Unix(), timeRange.End.Unix())
+		url := fmt.Sprintf("%s/%d/results?format=txt&start=%d&stop=%d&probe_ids=%d",
+			ripe_atlas.MeasurementsUrl, measurement, timeRange.Start.Unix(), timeRange.End.Unix(), request.ProbeId)
 
 		dataUrls = append(dataUrls, url)
 	}
+
+	state.TracerouteDataLock.Unlock()
 
 	// If possible redirect to RIPE Atlas
 	if len(dataUrls) == 1 {
@@ -48,8 +60,9 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 	fileName := fmt.Sprintf("raw_traceroute_%d.json", request.ProbeId)
 
 	header := ctx.Writer.Header()
-	header["Content-Type"] = []string{"application/octet-stream"}
-	header["Content-Disposition"] = []string{"attachment; filename=" + fileName}
+	header[HeaderContentType] = []string{MimeOctetStream}
+	header[HeaderContentDisposition] = []string{"attachment; filename=" + fileName}
+	defer ctx.Writer.Flush()
 
 	for _, url := range dataUrls {
 		response, err := http.Get(url)
@@ -68,12 +81,10 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 			return
 		}
 	}
-
-	ctx.Writer.Flush()
 }
 
 func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
-	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx)
 	if !ok {
 		return
 	}
@@ -143,7 +154,7 @@ func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
 		parentCounts[endpoints.Start.Ip] = parentCounts[endpoints.Start.Ip] + 1
 	}
 
-	minEdgeWeight := util.GetEnvFloat(util.MinCleanEdgeWeight, 0.1)
+	minEdgeWeight := config.MinCleanEdgeWeight.GetFloat()
 
 	for endpoints, edge := range routeData.CleanEdges {
 		outboundCoverage := float64(edge.GetUsage()) / float64(routeData.Nodes[endpoints.Start].GetCleanOutboundUsages())
@@ -175,7 +186,7 @@ func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {
 }
 
 func (state DataRoute) GetTracerouteFull(ctx *gin.Context) {
-	request, ok := readJsonRequestBody[tracerouteRequest](ctx, 512)
+	request, ok := readJsonRequestBody[tracerouteRequest](ctx)
 	if !ok {
 		return
 	}
@@ -288,8 +299,9 @@ func (request *tracerouteRequest) UnmarshalJSON(bytes []byte) (err error) {
 	return
 }
 
-func readJsonRequestBody[T any](ctx *gin.Context, limit int) (value T, ok bool) {
-	requestBytes, err := util.ReadAtMost(ctx.Request.Body, limit)
+func readJsonRequestBody[T any](ctx *gin.Context) (value T, ok bool) {
+	requestSizeLimit := config.RequestByteLimit.GetInt()
+	requestBytes, err := util.ReadAtMost(ctx.Request.Body, requestSizeLimit)
 	if err != nil {
 		if err == util.ErrMessageTooLong {
 			ctx.String(http.StatusBadRequest, "Request too long\n")

@@ -2,10 +2,10 @@ package traceroute
 
 import (
 	"fmt"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"log"
 	"net/netip"
-	"sync"
 	"time"
 )
 
@@ -53,17 +53,6 @@ type probeDestinationPair struct {
 	destination netip.Addr
 }
 
-var statisticsPeriod time.Duration
-var statisticsPeriodLoader sync.Once
-
-func getStatisticsPeriod() time.Duration {
-	statisticsPeriodLoader.Do(func() {
-		statisticsPeriod = util.GetEnvDuration(util.StatisticsPeriod, 3*24*time.Hour)
-	})
-
-	return statisticsPeriod
-}
-
 type RouteData struct {
 	probeId    int
 	probeIps   map[netip.Addr]time.Time
@@ -89,7 +78,7 @@ func (stats EvictionStats) Add(other EvictionStats) EvictionStats {
 }
 
 func (routeData *RouteData) EvictToStatisticsPeriod(timestamp time.Time) EvictionStats {
-	oldestAllowed := timestamp.Add(-getStatisticsPeriod())
+	oldestAllowed := timestamp.Add(-config.StatisticsPeriod.GetDuration())
 	routeData.Metrics.EvictMetricsUpTo(oldestAllowed)
 
 	var stats EvictionStats
@@ -147,7 +136,7 @@ func (routeData *RouteData) AlignStatisticsEndTime(timestamp time.Time) {
 func MakeRouteData() *RouteData {
 	return &RouteData{
 		probeIps:   make(map[netip.Addr]time.Time),
-		routeUsage: util.MakeMovingSummation(getStatisticsPeriod()),
+		routeUsage: util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
 		Nodes:      make(map[NodeId]*Node),
 		Edges:      make(map[DirectedGraphEdge]*Edge),
 		CleanEdges: make(map[DirectedGraphEdge]*Edge),
@@ -198,11 +187,11 @@ type Node struct {
 
 func MakeNode() *Node {
 	return &Node{
-		averageRtt:              util.MakeMovingAverage(getStatisticsPeriod()),
+		averageRtt:              util.MakeMovingAverage(config.StatisticsPeriod.GetDuration()),
 		lastUsed:                time.Unix(0, 0),
-		totalOutboundUsage:      util.MakeMovingSummation(getStatisticsPeriod()),
-		totalCleanOutboundUsage: util.MakeMovingSummation(getStatisticsPeriod()),
-		totalUsage:              util.MakeMovingSummation(getStatisticsPeriod()),
+		totalOutboundUsage:      util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
+		totalCleanOutboundUsage: util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
+		totalUsage:              util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
 	}
 }
 
@@ -260,8 +249,8 @@ type Edge struct {
 
 func MakeEdge() *Edge {
 	return &Edge{
-		usage:    util.MakeMovingSummation(getStatisticsPeriod()),
-		netUsage: util.MakeMovingSummation(getStatisticsPeriod()),
+		usage:    util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
+		netUsage: util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
 		lastUsed: time.Unix(0, 0),
 	}
 }
