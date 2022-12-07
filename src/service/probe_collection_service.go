@@ -23,7 +23,7 @@ func (service *ProbeCollectionService) Name() string {
 func (service *ProbeCollectionService) Init(state *ApplicationState) (err error) {
 	service.probeCollection = probe.MakeProbeCollection()
 	service.probeRegistrationChannel = make(chan probe.ProbeRegistration)
-	state.DestinationToProbeMap = make(map[netip.Addr][]*probe.Probe)
+	state.DestinationToProbeMap = make(map[netip.Addr][]*probe.ProbeWithinDestination)
 	return nil
 }
 
@@ -70,21 +70,29 @@ func addProbeRegistration(service *ProbeCollectionService, state *ApplicationSta
 
 	//Check if we already have this probe id
 	for _, currProbe := range probesFromAddress {
-		if currProbe.Id == probeID {
+		if currProbe.Probe.Id == probeID {
+			currProbe.LastUsed = time.Now()
 			return
 		}
 	}
 
+	//We have not found the probe in the destination to probe map
 	//Get the corresponding probeObj
 	probeObj := service.probeCollection.GetProbeFromID(probeID)
 
-	//Return immediately if we could not find probeObj, already logged
+	//Return immediately if we could not find probeObj within our storage, already logged the missing probe
 	if probeObj == nil {
 		return
 	}
 
+	//Create the object for the destination to probe map
+	newProbeDestination := probe.ProbeWithinDestination{
+		Probe:    probeObj,
+		LastUsed: time.Now(),
+	}
+
 	//If we did not find the probeObj then this is a new one, and we append it to the current list of probes
-	state.DestinationToProbeMap[destination] = append(probesFromAddress, probeObj)
+	state.DestinationToProbeMap[destination] = append(probesFromAddress, &newProbeDestination)
 }
 
 func getFromRipeAtlas(service *ProbeCollectionService, state *ApplicationState) {
