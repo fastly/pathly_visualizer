@@ -13,6 +13,15 @@ import (
 	"time"
 )
 
+// HTTP Headers we manually set
+const (
+	HeaderContentType        = "Content-Type"
+	HeaderContentDisposition = "Content-Disposition"
+)
+
+// MimeOctetStream is the MIME type for raw binary data
+const MimeOctetStream = "application/octet-stream"
+
 type tracerouteRequest struct {
 	ProbeId       int
 	DestinationIp netip.Addr
@@ -27,6 +36,7 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 	state.TracerouteDataLock.Lock()
 	routeData, ok := state.TracerouteData.GetRouteData(request.ProbeId, request.DestinationIp)
 	if !ok {
+		state.TracerouteDataLock.Unlock()
 		ctx.String(http.StatusBadRequest, "unable to find combination of probe and IP: %+v\n", request)
 		return
 	}
@@ -50,8 +60,9 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 	fileName := fmt.Sprintf("raw_traceroute_%d.json", request.ProbeId)
 
 	header := ctx.Writer.Header()
-	header["Content-Type"] = []string{"application/octet-stream"}
-	header["Content-Disposition"] = []string{"attachment; filename=" + fileName}
+	header[HeaderContentType] = []string{MimeOctetStream}
+	header[HeaderContentDisposition] = []string{"attachment; filename=" + fileName}
+	defer ctx.Writer.Flush()
 
 	for _, url := range dataUrls {
 		response, err := http.Get(url)
@@ -70,8 +81,6 @@ func (state DataRoute) GetTracerouteRaw(ctx *gin.Context) {
 			return
 		}
 	}
-
-	ctx.Writer.Flush()
 }
 
 func (state DataRoute) GetTracerouteClean(ctx *gin.Context) {

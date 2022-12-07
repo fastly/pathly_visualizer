@@ -6,7 +6,7 @@ import (
 
 var (
 	// StatisticsPeriod refers to the duration statistics are stored/collected for on measurements
-	StatisticsPeriod = makeConfig("STATISTICS_PERIOD", 3*24*time.Hour)
+	StatisticsPeriod = makeConfig("STATISTICS_PERIOD", 14*24*time.Hour)
 
 	// LogTracerouteProgress enables logging the progress of traceroute ingestion
 	LogTracerouteProgress = makeConfig("LOG_TRACEROUTE_PROGRESS", false)
@@ -20,4 +20,6 @@ var (
 	ProbeCollectionRefreshPeriod = makeConfig("PROBE_COLLECTION_REFRESH_PERIOD", 24*time.Hour)
 
 	RequestByteLimit = makeConfig("REQUEST_BYTE_LIMIT", 4096)
+
+	DebugMeasurementList = makeConfig("ATLAS_DEBUG_MEASUREMENTS", []int{47072659, 47072660})
 )

@@ -129,3 +129,21 @@ func (config *Config) GetFloat() float64 {
 		return strconv.ParseFloat(value, 64)
 	})
 }
+
+func (config *Config) GetIntList() []int {
+	return performLoad(config, func(value string) (outputs []int, err error) {
+		for _, item := range strings.Split(value, ",") {
+			trimmed := strings.TrimSpace(item)
+
+			var itemValue int
+			if itemValue, err = strconv.Atoi(trimmed); err != nil {
+				err = fmt.Errorf("expected comma seperate list of integers: %w", err)
+				return
+			}
+
+			outputs = append(outputs, itemValue)
+		}
+
+		return
+	})
+}
