@@ -21,6 +21,8 @@ func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 	measurement.POST("/stop", DataRoute{state}.StopTrackingMeasurement)
 	measurement.POST("/list", DataRoute{state}.ListTrackedMeasurement)
 
+	api.POST("/probes", DataRoute{state}.GetProbes)
+
 	router.NoRoute(func(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusNotFound)
 	})

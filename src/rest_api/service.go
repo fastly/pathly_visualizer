@@ -20,7 +20,11 @@ func (service *RestApiService) Name() string {
 }
 
 func (service *RestApiService) Init(state *service.ApplicationState) (err error) {
-	service.router = gin.Default()
+	service.router = gin.New()
+
+	// Add logging and recovery to gin
+	service.router.Use(gin.Logger())
+	service.router.Use(gin.Recovery())
 
 	if err := service.router.SetTrustedProxies(nil); err != nil {
 		return err
@@ -36,7 +40,7 @@ func (service *RestApiService) Init(state *service.ApplicationState) (err error)
 }
 
 func (service *RestApiService) Run(state *service.ApplicationState) error {
-	if os.Getenv("GIN_MODE") == "release" {
+	if os.Getenv(gin.EnvGinMode) == gin.ReleaseMode {
 		return service.router.Run(":80")
 	} else {
 		return service.router.Run(":8080")

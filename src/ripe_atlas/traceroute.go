@@ -12,9 +12,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 )
+
+const measurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
 
 const pkParam = "pk"
 const startParam = "start"
@@ -22,6 +23,8 @@ const stopParam = "stop"
 
 const typeParam = "type"
 const msmParam = "msm"
+
+const DefaultCacheDuration = 12 * time.Hour
 
 func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]measurement.Result, error) {
 	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
@@ -55,7 +58,12 @@ func GetStreamingTraceRouteData(measurementID int) (<-chan *measurement.Result, 
 }
 
 func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) {
-	byteChannel, outputChannel := util.MakeWorkGroup(func(bytes []byte, output chan *measurement.Result) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	byteChannel, outputChannel := util.MakeWorkGroup(64, func(bytes []byte, output chan *measurement.Result) {
 		var out *measurement.Result
 		if err := json.Unmarshal(bytes, &out); err != nil {
 			log.Println("Received error while reading input JSON:", err)
@@ -64,53 +72,29 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 		}
 	})
 
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		defer util.CloseAndLogErrors("Failed to close file after reading traceroute data", file)
-		bufferedRead := bufio.NewReader(file)
-		scanner := bufio.NewScanner(bufferedRead)
-
-		// Break input file into lines and distribute them to workers
-		for scanner.Scan() {
-			line := scanner.Bytes()
-			buffer := make([]byte, len(line), len(line))
-			copy(buffer, line)
-			byteChannel <- buffer
-		}
-
-		if err := scanner.Err(); err != nil {
-			log.Println("Got error while reading traceroute data from file:", err)
-		}
-
-		close(byteChannel)
-	}()
+	go breakFileIntoLines(file, byteChannel)
 
 	return outputChannel, nil
 }
 
-const DefaultCacheDuration = 12 * time.Hour
+func breakFileIntoLines(file *os.File, lineBytesOutput chan []byte) {
+	defer util.CloseAndLogErrors("Failed to close file after reading traceroute data", file)
+	defer close(lineBytesOutput)
+	bufferedRead := bufio.NewReader(file)
+	scanner := bufio.NewScanner(bufferedRead)
 
-func getCacheDuration() time.Duration {
-	value, ok := os.LookupEnv("CACHE-DURATION")
-
-	if !ok {
-		return DefaultCacheDuration
+	// Break input file into lines and distribute them to workers
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		buffer := make([]byte, len(line), len(line))
+		copy(buffer, line)
+		lineBytesOutput <- buffer
 	}
 
-	seconds, err := strconv.ParseUint(value, 0, 64)
-	if err != nil {
-		log.Printf("Failed to read CACHE-DURATION value of %q: %v\n", value, err)
-		return DefaultCacheDuration
+	if err := scanner.Err(); err != nil {
+		log.Println("Got error while reading traceroute data from file:", err)
 	}
-
-	return time.Duration(seconds) * time.Second
 }
-
-const measurementsUrl = "https://atlas.ripe.net/api/v2/measurements"
 
 func updateCacheFile(measurementID int, cacheFile string) error {
 	file, err := os.Create(cacheFile)
@@ -121,14 +105,14 @@ func updateCacheFile(measurementID int, cacheFile string) error {
 	writer := bufio.NewWriter(file)
 	defer util.CloseAndLogErrors("Failed to close cache file writer", file)
 
-	url := fmt.Sprintf("%s/%d/results?format=json", measurementsUrl, measurementID)
+	url := fmt.Sprintf("%s/%d/results?format=txt", measurementsUrl, measurementID)
 	res, err := http.Get(url)
 	if err != nil {
 		return err
 	}
 
-	defer util.CloseAndLogErrors("Failed to close measurement request", res.Body)
-	if _, err := io.Copy(util.NewNdjsonConverter(writer), res.Body); err != nil {
+	defer util.CloseAndLogErrors("Failed to close request for measurement results", res.Body)
+	if _, err := io.Copy(writer, res.Body); err != nil {
 		return err
 	}
 
@@ -149,7 +133,7 @@ func CachedGetTraceRouteData(measurementID int) (channel <-chan *measurement.Res
 		return
 	}
 
-	cacheDuration := getCacheDuration()
+	cacheDuration := util.GetEnvDuration(util.CacheStoreDuration, DefaultCacheDuration)
 	log.Println("Using cache duration of", cacheDuration)
 
 	if err != nil || stat.ModTime().Add(cacheDuration).Before(time.Now()) {

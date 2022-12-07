@@ -24,6 +24,7 @@ func main() {
 		service.IpToAsnService{},
 		service.TracerouteDataService{},
 		rest_api.NewRestApiService(),
+		service.NewProbeCollectionService(),
 		// etc...
 	}
 

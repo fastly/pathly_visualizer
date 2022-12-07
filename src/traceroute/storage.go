@@ -3,10 +3,7 @@ package traceroute
 import (
 	"fmt"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
-	"log"
 	"net/netip"
-	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -46,24 +43,7 @@ var statisticsPeriodLoader sync.Once
 
 func getStatisticsPeriod() time.Duration {
 	statisticsPeriodLoader.Do(func() {
-		value, ok := os.LookupEnv("STATISTICS_PERIOD")
-
-		if !ok {
-			log.Println("Unable to find STATISTICS_PERIOD in .env. Using default statistics period of 3 days")
-			statisticsPeriod = 3 * 24 * time.Hour
-			return
-		}
-
-		period, err := strconv.ParseUint(value, 0, 64)
-		if err != nil {
-			log.Printf("Expected unsigned int value for  STATISTICS_PERIOD, but found %q. "+
-				"Using default statistics period of 3 days\n", value)
-			statisticsPeriod = 3 * 24 * time.Hour
-			return
-		}
-
-		log.Println("Using STATISTICS_PERIOD of", period, "seconds")
-		statisticsPeriod = time.Duration(period) * time.Second
+		statisticsPeriod = util.GetEnvDuration(util.StatisticsPeriod, 3*24*time.Hour)
 	})
 
 	return statisticsPeriod
