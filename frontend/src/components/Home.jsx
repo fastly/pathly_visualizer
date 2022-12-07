@@ -189,7 +189,7 @@ function Home() {
                 </label>
                 <p>ASN Colors</p>
             </div>
-            <button id="submitForm" type="submit">Visualize</button>
+            <button className="submitForm" type="submit">Visualize</button>
             </form>
         </div>
         <div id="graphArea">
