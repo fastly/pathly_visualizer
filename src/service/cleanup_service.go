@@ -19,7 +19,7 @@ func (service CleanupService) Init(*ApplicationState) (err error) {
 	//State that the last cleanup is when the program initializes
 	service.LastCleanup = time.Now()
 	//The Cleanup period is given as an environment variable or default option
-	service.CleanupPeriod = config.StatisticsPeriod.GetDuration()
+	service.CleanupPeriod = config.CleanupPeriod.GetDuration() //This I just realized should be different
 	return
 }
 
