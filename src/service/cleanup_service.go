@@ -24,7 +24,6 @@ func (service CleanupService) Init(*ApplicationState) (err error) {
 }
 
 func (service CleanupService) Run(state *ApplicationState) (err error) {
-
 	for {
 		timeElapsed := time.Since(service.LastCleanup)
 
