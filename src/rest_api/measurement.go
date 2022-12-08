@@ -68,11 +68,12 @@ func (state DataRoute) StopTrackingMeasurement(ctx *gin.Context) {
 
 func (state DataRoute) ListTrackedMeasurement(ctx *gin.Context) {
 	type Response struct {
-		AtlasMeasurementId     int   `json:"atlasMeasurementId"`
-		MeasurementPeriodStart int64 `json:"measurementPeriodStart"`
-		MeasurementPeriodStop  int64 `json:"measurementPeriodStop"`
-		IsLoadingHistory       bool  `json:"isLoadingHistory"`
-		UsesLiveCollection     bool  `json:"usesLiveCollection"`
+		AtlasMeasurementId     int    `json:"atlasMeasurementId"`
+		DestinationIp          string `json:"destinationIp"`
+		MeasurementPeriodStart int64  `json:"measurementPeriodStart"`
+		MeasurementPeriodStop  int64  `json:"measurementPeriodStop"`
+		IsLoadingHistory       bool   `json:"isLoadingHistory"`
+		UsesLiveCollection     bool   `json:"usesLiveCollection"`
 	}
 
 	var measurements []Response
@@ -83,6 +84,7 @@ func (state DataRoute) ListTrackedMeasurement(ctx *gin.Context) {
 
 		next := Response{
 			AtlasMeasurementId:     data.Id,
+			DestinationIp:          data.DestinationIp.String(),
 			MeasurementPeriodStart: data.OldestData.Unix(),
 			MeasurementPeriodStop:  data.LatestData.Unix(),
 			IsLoadingHistory:       data.CollectingHistory,

@@ -84,16 +84,14 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 
 // GetLatestTraceRouteData is similar to the ripeatlas equivalent, but this version uses a thread pool to speed up
 // parsing messages
-func GetLatestTraceRouteData(measurementID int) (<-chan *measurement.Result, error) {
+func GetLatestTraceRouteData(measurementID int) (<-chan *measurement.Result, io.Closer, error) {
 	startTime := time.Now().Add(-config.StatisticsPeriod.GetDuration())
 
 	url := fmt.Sprintf("%s/%d/results?format=txt&start=%d", MeasurementsUrl, measurementID, startTime.Unix())
 	res, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	defer util.CloseAndLogErrors("Failed to close request for measurement results", res.Body)
 
 	byteChannel, outputChannel := util.MakeWorkGroup(64, func(bytes []byte, output chan *measurement.Result) {
 		var out *measurement.Result
@@ -106,7 +104,7 @@ func GetLatestTraceRouteData(measurementID int) (<-chan *measurement.Result, err
 
 	go breakReaderIntoLines(res.Body, byteChannel)
 
-	return outputChannel, nil
+	return outputChannel, res.Body, nil
 }
 
 func breakReaderIntoLines(input io.ReadCloser, lineBytesOutput chan []byte) {

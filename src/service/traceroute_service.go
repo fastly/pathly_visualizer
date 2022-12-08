@@ -8,6 +8,7 @@ import (
 	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"log"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -20,6 +21,7 @@ func (TracerouteDataService) Name() string {
 
 func (TracerouteDataService) Init(state *ApplicationState) (err error) {
 	state.TracerouteData = traceroute.MakeTracerouteData()
+	state.StoredMeasurements = MakeMeasurementTracker()
 	return
 }
 
@@ -29,6 +31,8 @@ func (TracerouteDataService) handleIncomingMessages(state *ApplicationState, cha
 	// times that it has been invoked. This helps show that the program is receiving messages and is not stuck in an
 	// invalid state.
 	progressCounter := util.MakeProgressCounter(3 * time.Second)
+
+	var info *MeasurementCollectionInfo
 
 loop:
 	for {
@@ -53,6 +57,14 @@ loop:
 				continue
 			}
 
+			if info == nil {
+				info = state.StoredMeasurements.getOrCreateMeasurement(msg.MsmId())
+			}
+
+			info.Lock.Lock()
+			info.UpdateLatestMeasurement(msg)
+			info.Lock.Unlock()
+
 			// Increment the progress counter so it knows how many messages have been received when calling the periodic
 			// function.
 			progressCounter.Increment()
@@ -75,13 +87,16 @@ loop:
 }
 
 func handleRetrieveHistory(state *ApplicationState, info *MeasurementCollectionInfo) {
-	channel, err := ripe_atlas.GetLatestTraceRouteData(info.Id)
+	channel, closer, err := ripe_atlas.GetLatestTraceRouteData(info.Id)
 	defer info.SetCollectingHistory(false)
+	defer log.Println("Finished collecting history on measurement", info.Id)
 
 	if err != nil {
 		log.Println("Encountered error when trying to fetch measurement history:", err)
 		return
 	}
+
+	defer util.CloseAndLogErrors("Failed to close request for measurement results", closer)
 
 	for {
 		msg, ok := <-channel
@@ -98,7 +113,7 @@ func handleRetrieveHistory(state *ApplicationState, info *MeasurementCollectionI
 		}
 
 		info.Lock.Lock()
-		info.UpdateLatestMeasurementTimestamp(time.Unix(int64(msg.Timestamp()), 0))
+		info.UpdateLatestMeasurement(msg)
 		info.Lock.Unlock()
 
 		state.TracerouteDataLock.Lock()
@@ -110,6 +125,7 @@ func handleRetrieveHistory(state *ApplicationState, info *MeasurementCollectionI
 func handleLiveCollection(state *ApplicationState, info *MeasurementCollectionInfo) {
 	channel, err := ripe_atlas.GetStreamingTraceRouteData(info.Id)
 	defer info.SetPerformingLiveCollection(false)
+	defer log.Println("Exiting live collection goroutine for measurement", info.Id)
 
 	if err != nil {
 		log.Println("Encountered error when trying to fetch measurement history:", err)
@@ -136,7 +152,7 @@ loop:
 			state.TracerouteDataLock.Unlock()
 
 			info.Lock.Lock()
-			info.UpdateLatestMeasurementTimestamp(time.Unix(int64(msg.Timestamp()), 0))
+			info.UpdateLatestMeasurement(msg)
 
 			if info.RequestStopLiveCollection {
 				info.RequestStopLiveCollection = false
@@ -160,6 +176,7 @@ func (service TracerouteDataService) Run(state *ApplicationState) (err error) {
 
 		service.handleIncomingMessages(state, resultChannel)
 	}
+	log.Println("Finished adding debug measurements")
 
 	for {
 		action, ok := <-state.StoredMeasurements.requestChannel
@@ -184,6 +201,7 @@ func (service TracerouteDataService) handleAction(state *ApplicationState, actio
 			return
 		}
 
+		log.Println("Collecting history on measurement", info.Id)
 		info.CollectingHistory = true
 		go handleRetrieveHistory(state, info)
 	case StartLiveCollection:
@@ -192,9 +210,11 @@ func (service TracerouteDataService) handleAction(state *ApplicationState, actio
 			return
 		}
 
+		log.Println("Starting live collection on measurement", info.Id)
 		info.PerformingLiveCollection = true
 		go handleLiveCollection(state, info)
 	case StopLiveCollection:
+		log.Println("Requesting to stop live collection on measurement", info.Id)
 		info.RequestStopLiveCollection = info.PerformingLiveCollection
 	}
 }
@@ -210,6 +230,12 @@ type actionType = int
 type MeasurementTracker struct {
 	TrackedMeasurements sync.Map
 	requestChannel      chan CollectionMessage
+}
+
+func MakeMeasurementTracker() MeasurementTracker {
+	return MeasurementTracker{
+		requestChannel: make(chan CollectionMessage, 64),
+	}
 }
 
 func (tracker *MeasurementTracker) sendMessage(measurement int, action actionType) {
@@ -251,6 +277,7 @@ type CollectionMessage struct {
 
 type MeasurementCollectionInfo struct {
 	Id                        int
+	DestinationIp             netip.Addr
 	PerformingLiveCollection  bool
 	CollectingHistory         bool
 	RequestStopLiveCollection bool
@@ -267,6 +294,23 @@ func (info *MeasurementCollectionInfo) UpdateLatestMeasurementTimestamp(timestam
 
 	if info.LatestData.Before(timestamp) {
 		info.LatestData = timestamp
+	}
+}
+
+func (info *MeasurementCollectionInfo) UpdateLatestMeasurement(msg *measurement.Result) {
+	timestamp := time.Unix(int64(msg.Timestamp()), 0)
+	if info.OldestData.After(timestamp) || info.OldestData == time.Unix(0, 0) {
+		info.OldestData = timestamp
+	}
+
+	if info.LatestData.Before(timestamp) {
+		info.LatestData = timestamp
+	}
+
+	if !info.DestinationIp.IsValid() {
+		if ip, err := netip.ParseAddr(msg.DstAddr()); err == nil {
+			info.DestinationIp = ip
+		}
 	}
 }
 
