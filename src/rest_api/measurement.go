@@ -13,7 +13,7 @@ func (state DataRoute) StartTrackingMeasurement(ctx *gin.Context) {
 		StartLiveCollection bool `json:"startLiveCollection"`
 	}
 
-	request, ok := readJsonRequestBody[Request](ctx, 512)
+	request, ok := readJsonRequestBody[Request](ctx)
 	if !ok {
 		return
 	}
@@ -33,13 +33,7 @@ func (state DataRoute) StartTrackingMeasurement(ctx *gin.Context) {
 	}
 
 	if err != nil {
-		if err == service.ErrMeasurementDoesNotExist {
-			ctx.String(http.StatusBadRequest, "Specified measurement ID does not exist")
-		} else {
-			ctx.Status(http.StatusInternalServerError)
-			_ = ctx.Error(err)
-		}
-
+		ctx.String(http.StatusInternalServerError, "Failed due to Error: %w", err)
 		return
 	}
 
@@ -52,21 +46,21 @@ func (state DataRoute) StopTrackingMeasurement(ctx *gin.Context) {
 		DropStoredData     bool `json:"dropStoredData"`
 	}
 
-	request, ok := readJsonRequestBody[Request](ctx, 512)
+	request, ok := readJsonRequestBody[Request](ctx)
 	if !ok {
 		return
 	}
 
 	if err := state.DisableLiveMeasurementCollection(request.AtlasMeasurementId); err != nil {
-		if err != service.ErrMeasurementDoesNotExist {
-			ctx.Status(http.StatusInternalServerError)
-			_ = ctx.Error(err)
-			return
-		}
+		ctx.String(http.StatusInternalServerError, "Failed due to Error: %w", err)
+		return
 	}
 
 	if request.DropStoredData {
-		state.DropMeasurementData(request.AtlasMeasurementId)
+		if err := state.DropMeasurementData(request.AtlasMeasurementId); err != nil {
+			ctx.String(http.StatusInternalServerError, "Failed due to Error: %w", err)
+			return
+		}
 	}
 
 	ctx.Status(http.StatusOK)
@@ -80,5 +74,25 @@ func (state DataRoute) ListTrackedMeasurement(ctx *gin.Context) {
 		IsLoadingHistory       bool  `json:"isLoadingHistory"`
 		UsesLiveCollection     bool  `json:"usesLiveCollection"`
 	}
-	ctx.JSON(http.StatusOK, gin.H{"msg": "world"})
+
+	var measurements []Response
+
+	state.StoredMeasurements.TrackedMeasurements.Range(func(key any, value any) bool {
+		data := value.(*service.MeasurementCollectionInfo)
+		data.Lock.Lock()
+
+		next := Response{
+			AtlasMeasurementId:     data.Id,
+			MeasurementPeriodStart: data.OldestData.Unix(),
+			MeasurementPeriodStop:  data.LatestData.Unix(),
+			IsLoadingHistory:       data.CollectingHistory,
+			UsesLiveCollection:     data.PerformingLiveCollection,
+		}
+
+		data.Lock.Unlock()
+		measurements = append(measurements, next)
+		return true
+	})
+
+	ctx.JSON(http.StatusOK, measurements)
 }

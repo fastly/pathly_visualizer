@@ -2,18 +2,17 @@ package rest_api
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/gin-gonic/gin"
-	"io"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"net/http"
 )
 
-var errMessageTooLong = errors.New("message is too long")
-
-func readJsonRequestBody[T any](ctx *gin.Context, limit int) (value T, ok bool) {
-	requestBytes, err := readAtMost(ctx.Request.Body, limit)
+func readJsonRequestBody[T any](ctx *gin.Context) (value T, ok bool) {
+	requestSizeLimit := config.RequestByteLimit.GetInt()
+	requestBytes, err := util.ReadAtMost(ctx.Request.Body, requestSizeLimit)
 	if err != nil {
-		if err == errMessageTooLong {
+		if err == util.ErrMessageTooLong {
 			ctx.String(http.StatusBadRequest, "Request too long\n")
 		} else {
 			ctx.Status(http.StatusInternalServerError)
@@ -29,32 +28,4 @@ func readJsonRequestBody[T any](ctx *gin.Context, limit int) (value T, ok bool) 
 
 	ok = true
 	return
-}
-
-func min(a, b int) int {
-	if a > b {
-		return b
-	}
-	return a
-}
-
-func readAtMost(r io.Reader, limit int) ([]byte, error) {
-	b := make([]byte, 0, min(512, limit))
-	for {
-		if len(b) >= limit {
-			return b, errMessageTooLong
-		}
-		if len(b) == cap(b) {
-			// Add more capacity (let append pick how much).
-			b = append(b, 0)[:len(b)]
-		}
-		n, err := r.Read(b[len(b):min(limit, cap(b))])
-		b = b[:len(b)+n]
-		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
-			return b, err
-		}
-	}
 }

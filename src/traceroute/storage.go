@@ -31,6 +31,14 @@ func (tracerouteData *TracerouteData) EvictOutdatedData() {
 	log.Println("Evicted outdated data:", stats.Nodes, "nodes,", stats.RawEdges+stats.CleanEdges, "edges")
 }
 
+func (tracerouteData *TracerouteData) DropMeasurementData(measurement int) {
+	for id, route := range tracerouteData.inner {
+		if route.Metrics.UsesSingleMeasurement(measurement) {
+			delete(tracerouteData.inner, id)
+		}
+	}
+}
+
 func (tracerouteData *TracerouteData) getOrCreateRouteData(probeId int, destination netip.Addr) *RouteData {
 	// Create the key using the source and destination
 	key := probeDestinationPair{probeId, destination}
