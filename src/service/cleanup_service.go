@@ -43,10 +43,6 @@ func (service CleanupService) Run(state *ApplicationState) (err error) {
 	}
 }
 
-//I think the traceroute data is the main thing, but generally any data that was last used more than the statistics period ago.
-//That includes removing all old nodes/edges from routes and removing any routes that no-longer have any up to date data.
-//I am thinking we probably want to clear it about once a day?
-
 func evictDestinationProbeMap(state *ApplicationState, service CleanupService) {
 	//Get the oldest time that we are keeping
 	oldestAllowed := time.Now().Add(-service.CleanupPeriod)
