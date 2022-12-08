@@ -22,4 +22,7 @@ var (
 	RequestByteLimit = makeConfig("REQUEST_BYTE_LIMIT", 4096)
 
 	DebugMeasurementList = makeConfig("ATLAS_DEBUG_MEASUREMENTS", []int{47072659, 47072660})
+
+	// CleanupPeriod refers to how often we clean up our data
+	CleanupPeriod = makeConfig("CLEANUP_PERIOD", 24*time.Hour)
 )
