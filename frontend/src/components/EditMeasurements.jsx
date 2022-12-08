@@ -52,9 +52,15 @@ function EditMeasurements() {
             },
             body: JSON.stringify(requestObj),
         })
-        .then((response) => response.json())
-        .then((data) => {
-            console.log(data)
+        .then((response) => {
+            if(response.status === 200){
+                alert("Success!")
+            } else if (response.status === 400 && start){
+                alert("An error occurred. Please ensure the Measurement ID is correct and that one of 'Fetch Historical Data' or 'Start Live Collection' is selected.")
+            } else {
+                alert("An error occurred. Please ensure all information is correct.")
+            }
+            window.location.reload()
         })
         .catch((error) => {
             console.error(error)
