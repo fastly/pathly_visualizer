@@ -15,7 +15,7 @@
   transform: translate(-50%,-50%);
 }
 
-#submitForm {
+.submitForm {
   background-color: #23E0A8;
   border: solid black;
   border-width: 1px;
@@ -114,6 +114,32 @@ input:checked+.slider:before {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* OTHER FORMS */
+
+.formDiv{
+  text-align: center;
+  background-color: #E6F8FC;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 10px;
+  width: 400px;
+  padding: 5px;
+}
+
+.editMeasurements{
+  display: inline-flex;
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  -ms-transform: translateX(-50%) translateY(-50%);
+  -webkit-transform: translate(-50%,-50%);
+  transform: translate(-50%,-50%);
+}
+
+.editMeasurements > div {
+  margin: 20px;
 }
 
 /* GRAPH */
