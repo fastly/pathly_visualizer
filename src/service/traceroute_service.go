@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/DNS-OARC/ripeatlas/measurement"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/ripe_atlas"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/traceroute"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
@@ -21,7 +22,7 @@ func (TracerouteDataService) Init(state *ApplicationState) (err error) {
 }
 
 func (TracerouteDataService) handleIncomingMessages(state *ApplicationState, channel <-chan *measurement.Result) {
-	logProgress := util.IsEnvFlagSet(util.LogTracerouteProgress)
+	logProgress := config.LogTracerouteProgress.GetAsFlag()
 	// The progress counter is a debugging tool which will periodically call the Periodic function with the number of
 	// times that it has been invoked. This helps show that the program is receiving messages and is not stuck in an
 	// invalid state.
@@ -57,9 +58,9 @@ loop:
 			// Since we mutate the shared traceroute state we need to ensure exclusive access to the traceroute state.
 			// Unlike other systems where data is swapped out, traceroute data is regularly mutated in place leading to
 			// a higher risk of undefined behavior from concurrent reading/writing.
-			state.tracerouteDataLock.Lock()
+			state.TracerouteDataLock.Lock()
 			state.TracerouteData.AppendMeasurement(msg)
-			state.tracerouteDataLock.Unlock()
+			state.TracerouteDataLock.Unlock()
 		case <-time.After(3 * time.Second):
 			// We could potentially be waiting for longer than the progress counter interval to receive a message. This
 			// timeout simply breaks us out of waiting so the progress counter can call the periodic function.
@@ -73,10 +74,15 @@ loop:
 
 func (service TracerouteDataService) Run(state *ApplicationState) (err error) {
 	var resultChannel <-chan *measurement.Result
-	if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(46320619); err != nil {
-		return
+
+	for _, id := range config.DebugMeasurementList.GetIntList() {
+		log.Println("Loading debug measurement ID", id)
+		if resultChannel, err = ripe_atlas.CachedGetTraceRouteData(id); err != nil {
+			return
+		}
+
+		service.handleIncomingMessages(state, resultChannel)
 	}
 
-	service.handleIncomingMessages(state, resultChannel)
 	return nil
 }

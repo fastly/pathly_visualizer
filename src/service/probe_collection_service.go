@@ -1,14 +1,11 @@
 package service
 
 import (
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/probe"
-	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
 	"net/netip"
 	"time"
 )
-
-// ProbeCollectionRefreshPeriod We want to refresh the probes that we have every 30 minutes
-const DefaultProbeCollectionRefreshPeriod = 24 * time.Hour
 
 type ProbeCollectionService struct {
 	probeCollection          probe.ProbeCollection
@@ -31,7 +28,7 @@ func (service *ProbeCollectionService) Init(state *ApplicationState) (err error)
 }
 
 func (service *ProbeCollectionService) Run(state *ApplicationState) error {
-	refreshPeriod := util.GetEnvDuration(util.ProbeCollectionRefreshPeriod, DefaultProbeCollectionRefreshPeriod)
+	refreshPeriod := config.ProbeCollectionRefreshPeriod.GetDuration()
 
 	for {
 		//Check how much time has passed since we last updated the probes

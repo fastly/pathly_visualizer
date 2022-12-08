@@ -16,13 +16,14 @@ import (
 // other services will do a mix of reading and writing. There should be one concurrency structure in here for each
 // piece of the state that can be used in isolation.
 type ApplicationState struct {
-	IpToAsn               asn.IpToAsn
-	ipToAsnRefreshLock    sync.RWMutex
+	IpToAsn            asn.IpToAsn
+	ipToAsnRefreshLock sync.RWMutex
+
 	DestinationToProbeMap map[netip.Addr][]*probe.Probe
 	ProbeDataLock         sync.RWMutex
-	TracerouteData        traceroute.TracerouteData
-	tracerouteDataLock    sync.Mutex
-	// etc...
+
+	TracerouteData     traceroute.TracerouteData
+	TracerouteDataLock sync.Mutex
 }
 
 // InitApplicationState created the initial state to use upon the start of the application. This function is

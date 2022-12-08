@@ -16,23 +16,19 @@ func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 
 	api := router.Group("/api")
 
-	// GET request, basic
-	api.GET("/get", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{"msg": "world"})
+	api.GET("/destinations", func(cxt *gin.Context) {
+		cxt.JSON(http.StatusOK, []gin.H{{"ipv4": "151.101.0.1", "ipv6": "2a04:4e42::1"}})
 	})
 
-	// POST rq that returns the body of the request
-	api.POST("/post", func(ctx *gin.Context) {
-		buf := make([]byte, 1024)
-		num, _ := ctx.Request.Body.Read(buf)
-		reqBody := string(buf[0:num])
-		ctx.JSON(http.StatusOK, gin.H{"msg": reqBody})
-	})
+	traceroute := api.Group("/traceroute")
+	traceroute.POST("/raw", DataRoute{state}.GetTracerouteRaw)
+	traceroute.POST("/clean", DataRoute{state}.GetTracerouteClean)
+	traceroute.POST("/full", DataRoute{state}.GetTracerouteFull)
 
 	api.POST("/probes", DataRoute{state}.GetProbes)
 
 	router.NoRoute(func(ctx *gin.Context) {
-		ctx.JSON(http.StatusNotFound, gin.H{})
+		ctx.AbortWithStatus(http.StatusNotFound)
 	})
 }
 
