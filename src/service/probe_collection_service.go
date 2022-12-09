@@ -23,7 +23,7 @@ func (service *ProbeCollectionService) Name() string {
 func (service *ProbeCollectionService) Init(state *ApplicationState) (err error) {
 	service.probeCollection = probe.MakeProbeCollection()
 	service.probeRegistrationChannel = make(chan probe.ProbeRegistration)
-	state.DestinationToProbeMap = make(map[netip.Addr][]*probe.ProbeWithinDestination)
+	state.DestinationToProbeMap = make(map[netip.Addr][]*probe.ProbeUsage)
 	return nil
 }
 
@@ -86,7 +86,7 @@ func addProbeRegistration(service *ProbeCollectionService, state *ApplicationSta
 	}
 
 	//Create the object for the destination to probe map
-	newProbeDestination := probe.ProbeWithinDestination{
+	newProbeDestination := probe.ProbeUsage{
 		Probe:    probeObj,
 		LastUsed: time.Now(),
 	}

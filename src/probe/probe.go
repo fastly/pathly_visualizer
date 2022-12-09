@@ -17,7 +17,7 @@ type Probe struct {
 	// Both Type and Coordinates come together to form part of a GeoJson
 }
 
-type ProbeWithinDestination struct {
+type ProbeUsage struct {
 	Probe    *Probe
 	LastUsed time.Time
 }

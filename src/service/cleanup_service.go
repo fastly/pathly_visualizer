@@ -32,12 +32,17 @@ func (service CleanupService) Run(state *ApplicationState) (err error) {
 			<-time.After(service.CleanupPeriod - timeElapsed)
 		} else {
 			//Cleanup once the statistics period has reached
+			//Lock the data
 			state.TracerouteDataLock.Lock()
-			state.TracerouteData.EvictOutdatedData()
-			state.TracerouteDataLock.Unlock()
 			state.ProbeDataLock.Lock()
+			//Evict the old Traceroute Data
+			state.TracerouteData.EvictOutdatedData()
+			//Evict the old Probe data
 			evictDestinationProbeMap(state, service)
+			//Unlock the data
+			state.TracerouteDataLock.Unlock()
 			state.ProbeDataLock.Unlock()
+			//Set the new clean up time
 			service.LastCleanup = time.Now()
 		}
 	}
@@ -50,7 +55,7 @@ func evictDestinationProbeMap(state *ApplicationState, service CleanupService) {
 	//Go through each destination ip
 	for destIP, probeList := range state.DestinationToProbeMap {
 		//Create a new Probe list with the up-to-date probes
-		var newProbeList []*probe.ProbeWithinDestination
+		var newProbeList []*probe.ProbeUsage
 		//Look through each probe connected to that destination IP
 		for _, probeDest := range probeList {
 			//If that probe is before the time we allow, then we remove it from the list
