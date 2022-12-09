@@ -457,8 +457,8 @@ function Graph(props) {
         // set anchor element on node click
         setAnchorEl(event.currentTarget);
         // get node data to display
-        let formatted_node_data = node.data.replace(',', '//n') 
-        setTest(JSON.stringify(formatted_node_data));
+        //let formatted_node_data = node.data.replace(',', '//n') 
+        setTest(JSON.stringify(node.data));
         
         return node.data
     }
