@@ -40,10 +40,12 @@ function EditMeasurements() {
     }
 
     const sendPostRequest = (requestObj, start) => {
+        requestObj.atlasMeasurementId = parseInt(requestObj.atlasMeasurementId)
         let fetchUrl = "http://localhost:8080/api/measurement/start"
         if(!start){
             fetchUrl = "http://localhost:8080/api/measurement/stop"
         }
+        console.log(requestObj)
 
         fetch(fetchUrl, {
             method: 'POST',
@@ -57,6 +59,8 @@ function EditMeasurements() {
                 alert("Success!")
             } else if (response.status === 400 && start){
                 alert("An error occurred. Please ensure the Measurement ID is correct and that one of 'Fetch Historical Data' or 'Start Live Collection' is selected.")
+            } else if (response.status === 500 && !start){
+                alert("An error occurred. Measurement can't be stopped as it's not being tracked live, if 'Drop Stored Data' is checked, historical data of that measurement will be dropped")
             } else {
                 alert("An error occurred. Please ensure all information is correct.")
             }
@@ -70,9 +74,9 @@ function EditMeasurements() {
     const getMeasurements = () => {
         let fetchUrl = "http://localhost:8080/api/measurement/list"
         fetch(fetchUrl)
-        .then((response) => response.json)
+        .then((response) => response.json())
         .then((data) => {
-            console.log(data)
+            document.getElementById("listOfMeasurements").innerHTML = JSON.stringify(data)
         })
         .catch((error) => {
             console.error(error)
@@ -85,8 +89,8 @@ function EditMeasurements() {
             <div className="formDiv">
                 <form onSubmit={startMeasurement}>
                     <h1>START TRACKING MEASUREMENT</h1>
-                    <label for="measurementId">RIPE Atlas Measurement ID</label>
-                    <input name="measurementId" placeholder="e.g. 123456" style={{width: "90%"}} required></input>
+                    <label for="atlasMeasurementId">RIPE Atlas Measurement ID</label>
+                    <input name="atlasMeasurementId" placeholder="e.g. 123456" style={{width: "90%"}} required></input>
                     <br/><br/>
                     <label for="loadHistory">Fetch Historical Data</label>
                     <input name="loadHistory" type={"checkbox"} style={{margin: 10}}></input>
@@ -100,8 +104,8 @@ function EditMeasurements() {
             <div className="formDiv">
                 <form onSubmit={stopMeasurement}>
                     <h1>STOP TRACKING MEASUREMENT</h1>
-                    <label for="measurementId">RIPE Atlas Measurement ID</label>
-                    <input name="measurementId" placeholder="e.g. 123456" style={{width: "90%"}} required></input>
+                    <label for="atlasMeasurementId">RIPE Atlas Measurement ID</label>
+                    <input name="atlasMeasurementId" placeholder="e.g. 123456" style={{width: "90%"}} required></input>
                     <br/><br/>
                     <label for="dropStoredData">Drop Stored Data</label>
                     <input name="dropStoredData" type={"checkbox"} style={{margin: 10}}></input>
@@ -110,7 +114,10 @@ function EditMeasurements() {
                 </form>
             </div>
         </div>
-        <button className="submitForm" type="button" style={{position: "absolute", top: "60%", left: "37%"}} onClick={getMeasurements}>Check Measurement List</button>
+        <div style={{position: "absolute", top: "60%", width: "100%", textAlign: "center"}}>
+            <button className="submitForm" type="button" onClick={getMeasurements}>Check Measurement List</button>
+            <p id="listOfMeasurements">List of Measurements Here</p>
+        </div>
         </>
     )
 }
