@@ -2,6 +2,7 @@ package probe
 
 import (
 	"net/netip"
+	"time"
 )
 
 type Probe struct {
@@ -14,4 +15,9 @@ type Probe struct {
 	Type        string     //Type of the GeoJson format will mostly be a "Point"
 	Coordinates []float64  //Coordinates from the GeoJson. Will be [Longitude, Latitude]
 	// Both Type and Coordinates come together to form part of a GeoJson
+}
+
+type ProbeUsage struct {
+	Probe    *Probe
+	LastUsed time.Time
 }
