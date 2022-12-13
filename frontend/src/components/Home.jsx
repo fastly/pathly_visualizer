@@ -157,9 +157,11 @@ function Home() {
 
     return (
         <>
+                  <p className="instructions"> To visualize the paths that a packet takes from a source probe to a Fastly Anycast destination, <br></br>fill out the form below.</p>
+
         <div className="App">
             {/* FORM FOR COLLECTING DATA FROM BACKEND STORAGE HERE */}
-            <h1>CREATE VISUALIZATION</h1>
+            <h1 className="boxTitle">CREATE VISUALIZATION</h1>
             <form id="postForm" onSubmit={search}>
             {/* Using list of measurements sds suggested to start from */}
             <label for="dst">Destination IP</label>
@@ -173,7 +175,9 @@ function Home() {
             <label for="src">Source Probe</label>
             <input id= "srcProbe" name="probeId" placeholder="e.g. 123456" required></input>
             <br></br>
+
             <div className="switchBox">
+            
                 <p>&nbsp;Full Data&nbsp;&nbsp;</p>
                 <label className="switch">
                 <input type="checkbox" name="fullOrClean" id="fullOrClean"/>

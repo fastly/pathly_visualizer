@@ -5,7 +5,7 @@
   border: solid black;
   border-width: 1px;
   border-radius: 10px;
-  width: 400px;
+  width: 550px;
   padding: 5px;
   position: absolute;
   top: 40%;
@@ -16,6 +16,18 @@
 }
 
 .submitForm {
+  background-color: #23E0A8;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 6px;
+  font-size: 20px;
+  margin: 5%;
+  padding: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.submitFormMeasurement {
   background-color: #23E0A8;
   border: solid black;
   border-width: 1px;
@@ -73,6 +85,7 @@ label {
   background-color: #AAB4BD;
   -webkit-transition: .4s;
   transition: .4s;
+  padding-top: 20px;
 }
 
 .slider:before {
@@ -152,6 +165,13 @@ input:checked+.slider:before {
 
 }
 
+.instructions {
+  font-size: 20px;
+  justify-content: center;
+  text-align: center;
+  transform: translate(0%, 90px);
+}
+
 .sponsors {
   display: inline-flex;
   justify-content: center;
@@ -167,6 +187,12 @@ input:checked+.slider:before {
   margin-right: 550px;
   padding: 1px;
   align-items: center;
+}
+
+.boxTitle {
+  padding-top: 18px;
+  padding-bottom: 1px;
+  font-size: 40px;
 }
 
 /* GRAPH */
