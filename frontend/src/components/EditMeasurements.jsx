@@ -95,29 +95,32 @@ function EditMeasurements() {
         <div className="editMeasurements">
             <div className="formDiv">
                 <form onSubmit={startMeasurement}>
-                    <h1>START TRACKING MEASUREMENT</h1>
+                    <h1 className="boxTitle">START TRACKING MEASUREMENT</h1>
                     <label for="atlasMeasurementId">RIPE Atlas Measurement ID</label>
                     <input name="atlasMeasurementId" placeholder="e.g. 123456" style={{width: "90%"}} required></input>
                     <br/><br/>
-                    <label for="loadHistory">Fetch Historical Data</label>
                     <input name="loadHistory" type={"checkbox"} style={{margin: 10}}></input>
+                    <label for="loadHistory">Fetch Historical Data</label>
+
                     <br/>
-                    <label for="startLiveCollection">Start Live Collection</label>
                     <input name="startLiveCollection" type={"checkbox"} style={{margin: 10}}></input>
+                    <label for="startLiveCollection">Start Live Collection</label>
+                    
                     <br/>
                     <button className="submitForm" type="submit">Submit</button>
                 </form>
             </div>
             <div className="formDiv">
                 <form onSubmit={stopMeasurement}>
-                    <h1>STOP TRACKING MEASUREMENT</h1>
+                    <h1 className="boxTitle">STOP TRACKING MEASUREMENT</h1>
                     <label for="atlasMeasurementId">RIPE Atlas Measurement ID</label>
                     <input name="atlasMeasurementId" placeholder="e.g. 123456" style={{width: "90%"}} required></input>
                     <br/><br/>
-                    <label for="dropStoredData">Drop Stored Data</label>
                     <input name="dropStoredData" type={"checkbox"} style={{margin: 10}}></input>
+                    <label for="dropStoredData">Drop Stored Data</label>
+                    
                     <br/>
-                    <button className="submitForm" type="submit">Submit</button>
+                    <button className="submitFormMeasurement" type="submit">Submit</button>
                 </form>
             </div>
         </div>
