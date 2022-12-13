@@ -618,10 +618,6 @@ function Graph(props) {
         })(0, sendingObjs.length)
     }
 
-    // // pass smth in to determine download, save, or reset
-    // const handlePopupOnclick = () => {
-
-    // }
     const myFunction = () => {
         var popup = document.getElementById("myPopup");
         popup.classList.toggle("show");
@@ -631,46 +627,12 @@ function Graph(props) {
         selectorNode: Node
     };
 
-
-    // const onElementClick = (event, element) => {
-    //     setAnchorEl(event.currentTarget);
-    //     setTest(JSON.stringify(element.data));
-    //     setTest(element.data);
-    //     console.log(element.data)
-    //     console.log(element.selected)
-    // };
-
     const handleClose = () => {
-
         setAnchorEl(null);
     };
 
     const open = Boolean(anchorEl);
     const id = open ? "simple-popover" : undefined;
-
-    // function downloadImage(dataUrl) {
-    //     const a = document.createElement('a');
-
-    //     a.setAttribute('download', 'reactflow.png');
-    //     a.setAttribute('href', dataUrl);
-    //     a.click();
-    // }
-    // const onDownloadClick = () => {
-    //     toPng(document.querySelector('.react-flow'), {
-    //         filter: (node) => {
-    //             // we don't want to add the minimap and the controls to the image
-    //             if (
-    //                 node?.classList?.contains('react-flow__minimap') ||
-    //                 node?.classList?.contains('react-flow__controls')
-    //             ) {
-    //                 return false;
-    //             }
-
-    //             return true;
-    //         },
-    //     }).then(downloadImage);
-    // }
-
 
     return (
         <div style={{height: 600, width: 1200, marginBottom: 100}}>
@@ -723,12 +685,6 @@ function Graph(props) {
                         <button id="confirmButton" onClick={onRestore}>Confirm</button></div>
                 </Popup>
 
-                {/* <div class="popup"> <button onClick={multiSelectPopUp}> Tester Node </button>
-                    <span class="popuptext" id="myPopup">
-                        <div class="popup" id="confirmPopup">Information about Node<br></br>
-                    </div></span>
-                </div> */}
-
                 {/* component for popups within React Flow window */}
                 <Popover
                     id={id}
@@ -747,12 +703,6 @@ function Graph(props) {
                     <Typography id="typography">{test}</Typography>
                 </Popover>
             </div>
-
-            {/* don't delete! experimenting to get multiple pop ups to stay on screen 
-            <div class="popup" onClick={popupTester}>Pretend NODE
-                <span class="popuptext" id="myPopup">Insert Node Info</span>
-            </div> */}
-
         </div >
     )
 }

@@ -105,7 +105,7 @@ function EditMeasurements() {
                     </form>
                 </div>
             </div>
-            <button className="submitForm" type="button" style={{ position: "absolute", top: "60%", left: "37%" }} onClick={getMeasurements}>Check Measurement List</button>
+            <button className="submitForm" type="button" style={{ position: "absolute", top: "60%", left: "40%" }} onClick={getMeasurements}>Check Measurement List</button>
         </>
     )
 }

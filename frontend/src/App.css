@@ -11,8 +11,8 @@
   top: 40%;
   left: 50%;
   -ms-transform: translateX(-50%) translateY(-50%);
-  -webkit-transform: translate(-50%,-50%);
-  transform: translate(-50%,-50%);
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
 }
 
 .submitForm {
@@ -118,7 +118,7 @@ input:checked+.slider:before {
 
 /* OTHER FORMS */
 
-.formDiv{
+.formDiv {
   text-align: center;
   background-color: #E6F8FC;
   border: solid black;
@@ -128,17 +128,17 @@ input:checked+.slider:before {
   padding: 5px;
 }
 
-.editMeasurements{
+.editMeasurements {
   display: inline-flex;
   position: absolute;
   top: 40%;
   left: 50%;
   -ms-transform: translateX(-50%) translateY(-50%);
-  -webkit-transform: translate(-50%,-50%);
-  transform: translate(-50%,-50%);
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
 }
 
-.editMeasurements > div {
+.editMeasurements>div {
   margin: 20px;
 }
 
@@ -151,18 +151,22 @@ input:checked+.slider:before {
   text-align: center;
 
 }
+
 .sponsors {
   display: inline-flex;
   justify-content: center;
   align-items: center;
   margin: 1%;
-  padding: 50px;
   cursor: pointer;
   transition: 0.2s;
-  position: absolute;
-  top: 30%;
-  left: 48%;
-  transform: translate(-50%,-50%);
+  transform: translate(0%, -30%);
+}
+
+.descrip {
+  margin-left: 550px;
+  margin-right: 550px;
+  padding: 1px;
+  align-items: center;
 }
 
 /* GRAPH */
@@ -172,7 +176,7 @@ input:checked+.slider:before {
   position: absolute;
   top: 70%;
   left: 50%;
-  transform: translate(-50%,0%);
+  transform: translate(-50%, 0%);
 }
 
 .react-flow__node.circle {

@@ -15,6 +15,7 @@ function Topbar() {
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                 <Nav className="ms-auto">
+                    <Nav.Link href="/">Create</Nav.Link>
                     <Nav.Link href="/edit">Edit Measurements</Nav.Link>
                     <Nav.Link href="https://atlas.ripe.net/">Ripe Atlas</Nav.Link>
                     <Nav.Link href="https://github.com/jmeggitt/fastly_anycast_experiments">Source Code</Nav.Link>
