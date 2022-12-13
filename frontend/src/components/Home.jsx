@@ -157,8 +157,10 @@ function Home() {
 
     return (
         <>
-                  <p className="instructions"> To visualize the paths that a packet takes from a source probe to a Fastly Anycast destination, <br></br>fill out the form below.</p>
-
+        <div className='instructionsDiv'>
+            <p className="instructions"> To visualize the paths that a packet takes from a source probe to a Fastly Anycast destination, <br></br>fill out the form below.</p>
+            <img src={require("./images/spacer.png")} width="80px" className='spacer'></img>
+        </div>
         <div className="App">
             {/* FORM FOR COLLECTING DATA FROM BACKEND STORAGE HERE */}
             <h1 className="boxTitle">CREATE VISUALIZATION</h1>

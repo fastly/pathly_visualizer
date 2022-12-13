@@ -6,8 +6,9 @@ This section will show off the important portions in the front end's file struct
 ├── public //what's visible to the user
 └── src
     ├── components //React functional components --> reuse code, ease up on readability
+    |   ├── images //Images used to stylize components
     |   └── test_data //All test data used when testing ReactFlow library
-    ├── App.js //Main page --> houses form and is where graphs are represented
+    ├── App.js //Main page --> used as react router --> routes to links connected to components (i.e. "/" to ./components/Home.jsx)
     └── package.json //Includes important dependency downloads and scripts --> scripts and what they do can be seen below
 ``` 
 
