@@ -1,0 +1,350 @@
+/* MAIN FORM */
+.App {
+  text-align: center;
+  background-color: #E6F8FC;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 10px;
+  width: 550px;
+  padding: 5px;
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  -ms-transform: translateX(-50%) translateY(-50%);
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}
+
+.submitForm {
+  background-color: #23E0A8;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 6px;
+  font-size: 20px;
+  margin: 5%;
+  padding: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.submitFormMeasurement {
+  background-color: #23E0A8;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 6px;
+  font-size: 20px;
+  margin: 5%;
+  padding: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#submitForm:hover {
+  background-color: #007A60;
+  color: white;
+}
+
+#srcProbe {
+  width: 350px;
+  font-size: 15px;
+  margin: 2%;
+}
+
+#destIP {
+  width: 355px;
+  font-size: 15px;
+  margin: 2%;
+}
+
+label {
+  display: block;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #AAB4BD;
+  -webkit-transition: .4s;
+  transition: .4s;
+  padding-top: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked+.slider {
+  background-color: #FCA119;
+}
+
+input:focus+.slider {
+  box-shadow: 0 0 1px #FCA119;
+}
+
+input:checked+.slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+.switchBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* OTHER FORMS */
+
+.formDiv {
+  text-align: center;
+  background-color: #E6F8FC;
+  border: solid black;
+  border-width: 1px;
+  border-radius: 10px;
+  width: 400px;
+  padding: 5px;
+}
+
+.editMeasurements {
+  display: inline-flex;
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  -ms-transform: translateX(-50%) translateY(-50%);
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}
+
+.editMeasurements>div {
+  margin: 20px;
+}
+
+.aboutPage {
+  /* display: inline-flex; */
+  justify-content: center;
+  align-items: center;
+  margin: 1%;
+  padding: 50px;
+  text-align: center;
+
+}
+
+.instructionsDiv {
+  font-size: 20px;
+  justify-content: center;
+  text-align: center;
+  transform: translate(0%, 50px);
+}
+
+.sponsors {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1%;
+  cursor: pointer;
+  transition: 0.2s;
+  transform: translate(0%, -30%);
+}
+
+.descrip {
+  margin-left: 200px;
+  margin-right: 200px;
+  padding: 1px;
+  align-items: center;
+}
+
+.boxTitle {
+  padding-top: 18px;
+  padding-bottom: 1px;
+  font-size: 40px;
+}
+
+/* GRAPH */
+
+#graphArea {
+  justify-content: center;
+  position: absolute;
+  top: 90%;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+
+.react-flow__node.circle {
+  border-radius: 50%;
+  width: 70px;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 10px;
+  font-weight: bold;
+  word-break: break-all;
+}
+
+.react-flow__node.group {
+  background-color: rgba(174, 174, 174, 0.2);
+}
+
+#confirmPopup {
+  margin: auto;
+  background: rgb(255, 255, 255);
+  width: 50%;
+  padding: 5px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+#confirmButton {
+  /* background: #e4fff4; */
+  border-radius: 5px;
+}
+
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* POP UP STUFF */
+
+/* Popup container - can be anything you want */
+.popup {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* The actual popup */
+.popup .popuptext {
+  visibility: hidden;
+  width: 130px;
+  background-color: #555;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 75%;
+  margin-left: -80px;
+}
+
+/* Popup arrow */
+.popup .popuptext::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #555 transparent transparent transparent;
+}
+
+/* Toggle this class - hide and show the popup */
+.popup .show {
+  visibility: visible;
+  -webkit-animation: fadeIn 1s;
+  animation: fadeIn 1s;
+}
+
+/* Add animation (fade in the popup) */
+@-webkit-keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
