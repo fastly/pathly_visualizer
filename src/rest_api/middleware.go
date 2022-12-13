@@ -2,6 +2,8 @@ package rest_api
 
 import (
 	"github.com/gin-gonic/gin"
+	"log"
+	"net/http"
 )
 
 // TODO: Look into replacing this middleware with https://github.com/gin-contrib/cors
@@ -20,4 +22,25 @@ func allowCORSMiddleware(ctx *gin.Context) {
 	}
 
 	ctx.Next()
+}
+
+func handleErrors(ctx *gin.Context) {
+	if len(ctx.Errors) == 0 {
+		return
+	}
+
+	log.Println("Got", len(ctx.Errors), "errors when handling route", ctx.Request.Method, ctx.Request.URL)
+
+	for index, err := range ctx.Errors {
+		if err.Type == gin.ErrorTypePrivate {
+			log.Printf("\t%d (Server): %v", index, err.Err)
+		} else {
+			log.Printf("\t%d (Request): %v", index, err.Err)
+		}
+	}
+
+	lastErr := ctx.Errors.Last()
+	if lastErr.IsType(gin.ErrorTypePublic) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": lastErr.Error()})
+	}
 }

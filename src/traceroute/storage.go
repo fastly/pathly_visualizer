@@ -2,9 +2,10 @@ package traceroute
 
 import (
 	"fmt"
+	"github.com/jmeggitt/fastly_anycast_experiments.git/config"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/util"
+	"log"
 	"net/netip"
-	"sync"
 	"time"
 )
 
@@ -18,10 +19,24 @@ func MakeTracerouteData() TracerouteData {
 	}
 }
 
+func (tracerouteData *TracerouteData) EvictOutdatedData() {
+	var stats EvictionStats
+	evictionTime := time.Now()
+
+	for _, route := range tracerouteData.inner {
+		routeStats := route.EvictToStatisticsPeriod(evictionTime)
+		stats = stats.Add(routeStats)
+	}
+
+	log.Println("Evicted outdated data:", stats.Nodes, "nodes,", stats.RawEdges+stats.CleanEdges, "edges")
+}
+
 func (tracerouteData *TracerouteData) getOrCreateRouteData(probeId int, destination netip.Addr) *RouteData {
 	// Create the key using the source and destination
 	key := probeDestinationPair{probeId, destination}
-	return util.MapGetOrCreate(tracerouteData.inner, key, MakeRouteData)
+	route := util.MapGetOrCreate(tracerouteData.inner, key, MakeRouteData)
+	route.probeId = probeId
+	return route
 }
 
 func (tracerouteData *TracerouteData) GetRouteData(probe int, destination netip.Addr) (*RouteData, bool) {
@@ -38,30 +53,94 @@ type probeDestinationPair struct {
 	destination netip.Addr
 }
 
-var statisticsPeriod time.Duration
-var statisticsPeriodLoader sync.Once
-
-func getStatisticsPeriod() time.Duration {
-	statisticsPeriodLoader.Do(func() {
-		statisticsPeriod = util.GetEnvDuration(util.StatisticsPeriod, 3*24*time.Hour)
-	})
-
-	return statisticsPeriod
-}
-
 type RouteData struct {
-	probeIp    netip.Addr
+	probeId    int
+	probeIps   map[netip.Addr]time.Time
 	routeUsage util.MovingSummation
 	Nodes      map[NodeId]*Node
 	Edges      map[DirectedGraphEdge]*Edge
+	CleanEdges map[DirectedGraphEdge]*Edge
+	Metrics    RouteUsageMetrics
+}
+
+type EvictionStats struct {
+	Nodes      uint
+	CleanEdges uint
+	RawEdges   uint
+}
+
+func (stats EvictionStats) Add(other EvictionStats) EvictionStats {
+	stats.Nodes += other.Nodes
+	stats.RawEdges += other.RawEdges
+	stats.CleanEdges += other.CleanEdges
+
+	return stats
+}
+
+func (routeData *RouteData) EvictToStatisticsPeriod(timestamp time.Time) EvictionStats {
+	oldestAllowed := timestamp.Add(-config.StatisticsPeriod.GetDuration())
+	routeData.Metrics.EvictMetricsUpTo(oldestAllowed)
+
+	var stats EvictionStats
+
+	for id, node := range routeData.Nodes {
+		if node.lastUsed.Before(oldestAllowed) {
+			delete(routeData.Nodes, id)
+			stats.Nodes += 1
+		}
+	}
+	for id, edge := range routeData.Edges {
+		if edge.lastUsed.Before(oldestAllowed) {
+			delete(routeData.Edges, id)
+			stats.RawEdges += 1
+		}
+	}
+	for id, edge := range routeData.CleanEdges {
+		if edge.lastUsed.Before(oldestAllowed) {
+			delete(routeData.CleanEdges, id)
+			stats.CleanEdges += 1
+		}
+	}
+
+	for ip, lastSeen := range routeData.probeIps {
+		if lastSeen.Before(oldestAllowed) {
+			delete(routeData.probeIps, ip)
+		}
+	}
+
+	routeData.AlignStatisticsEndTime(timestamp)
+	return stats
+}
+
+func (routeData *RouteData) AlignStatisticsEndTime(timestamp time.Time) {
+	routeData.routeUsage.IncrementUpperBound(timestamp)
+
+	for _, node := range routeData.Nodes {
+		node.averageRtt.IncrementUpperBound(timestamp)
+		node.totalOutboundUsage.IncrementUpperBound(timestamp)
+		node.totalCleanOutboundUsage.IncrementUpperBound(timestamp)
+		node.totalUsage.IncrementUpperBound(timestamp)
+	}
+
+	for _, edge := range routeData.Edges {
+		edge.usage.IncrementUpperBound(timestamp)
+		edge.netUsage.IncrementUpperBound(timestamp)
+	}
+
+	for _, edge := range routeData.CleanEdges {
+		edge.usage.IncrementUpperBound(timestamp)
+		edge.netUsage.IncrementUpperBound(timestamp)
+	}
 }
 
 func MakeRouteData() *RouteData {
 	return &RouteData{
-		// probeIp: nil,
-		routeUsage: util.MakeMovingSummation(getStatisticsPeriod()),
+		probeIps:   make(map[netip.Addr]time.Time),
+		routeUsage: util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
 		Nodes:      make(map[NodeId]*Node),
 		Edges:      make(map[DirectedGraphEdge]*Edge),
+		CleanEdges: make(map[DirectedGraphEdge]*Edge),
+		Metrics:    makeRouteUsageMetrics(),
 	}
 }
 
@@ -69,12 +148,16 @@ func (routeData *RouteData) GetTotalUsages() int64 {
 	return int64(routeData.routeUsage.Sum())
 }
 
-func (routeData *RouteData) GetProbeIp() netip.Addr {
-	return routeData.probeIp
+func (routeData *RouteData) GetProbeIps() (probeAddresses []netip.Addr) {
+	for ip := range routeData.probeIps {
+		probeAddresses = append(probeAddresses, ip)
+	}
+
+	return
 }
 
 func (routeData *RouteData) IsEmpty() bool {
-	return !routeData.probeIp.IsValid()
+	return len(routeData.Nodes) == 0
 }
 
 func (routeData *RouteData) getOrCreateEdge(src, dst NodeId) *Edge {
@@ -97,16 +180,18 @@ type Node struct {
 	lastUsed   time.Time
 
 	// Used to determine the outboundCoverage of outbound edges
-	totalOutboundUsage util.MovingSummation
-	totalUsage         util.MovingSummation
+	totalOutboundUsage      util.MovingSummation
+	totalCleanOutboundUsage util.MovingSummation
+	totalUsage              util.MovingSummation
 }
 
 func MakeNode() *Node {
 	return &Node{
-		averageRtt:         util.MakeMovingAverage(getStatisticsPeriod()),
-		lastUsed:           time.Unix(0, 0),
-		totalOutboundUsage: util.MakeMovingSummation(getStatisticsPeriod()),
-		totalUsage:         util.MakeMovingSummation(getStatisticsPeriod()),
+		averageRtt:              util.MakeMovingAverage(config.StatisticsPeriod.GetDuration()),
+		lastUsed:                time.Unix(0, 0),
+		totalOutboundUsage:      util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
+		totalCleanOutboundUsage: util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
+		totalUsage:              util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
 	}
 }
 
@@ -124,6 +209,10 @@ func (node *Node) GetNumUsages() int64 {
 
 func (node *Node) GetOutboundUsages() int64 {
 	return int64(node.totalOutboundUsage.Sum())
+}
+
+func (node *Node) GetCleanOutboundUsages() int64 {
+	return int64(node.totalCleanOutboundUsage.Sum())
 }
 
 type NodeId struct {
@@ -160,8 +249,8 @@ type Edge struct {
 
 func MakeEdge() *Edge {
 	return &Edge{
-		usage:    util.MakeMovingSummation(getStatisticsPeriod()),
-		netUsage: util.MakeMovingSummation(getStatisticsPeriod()),
+		usage:    util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
+		netUsage: util.MakeMovingSummation(config.StatisticsPeriod.GetDuration()),
 		lastUsed: time.Unix(0, 0),
 	}
 }

@@ -36,6 +36,8 @@ func (service *RestApiService) Init(state *service.ApplicationState) (err error)
 
 	log.Println("Setting up REST API routes")
 	setupRoutes(service.router, state)
+
+	service.router.Use(handleErrors)
 	return
 }
 
