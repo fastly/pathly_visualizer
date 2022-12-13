@@ -1,9 +1,10 @@
 package rest_api
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmeggitt/fastly_anycast_experiments.git/service"
-	"net/http"
 )
 
 // This function currently holds routes form the REST API frontend experiments. After being cleaned up, this function
@@ -15,11 +16,6 @@ func setupRoutes(router *gin.Engine, state *service.ApplicationState) {
 	})
 
 	api := router.Group("/api")
-	{
-		// GET request, basic
-		api.GET("/get", func(ctx *gin.Context) {
-			ctx.JSON(http.StatusOK, gin.H{"msg": "world"})
-		})
 
 	api.GET("/destinations", func(cxt *gin.Context) {
 		cxt.JSON(http.StatusOK, []gin.H{{"ipv4": "151.101.0.1", "ipv6": "2a04:4e42::1"}})
