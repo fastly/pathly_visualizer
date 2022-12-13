@@ -174,7 +174,7 @@ function Home() {
             <input id= "srcProbe" name="probeId" placeholder="e.g. 123456" required></input>
             <br></br>
             <div className="switchBox">
-                <p>Full Data</p>
+                <p>&nbsp;Full Data&nbsp;&nbsp;</p>
                 <label className="switch">
                 <input type="checkbox" name="fullOrClean" id="fullOrClean"/>
                 <span className="slider round"></span>

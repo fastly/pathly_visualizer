@@ -142,6 +142,29 @@ input:checked+.slider:before {
   margin: 20px;
 }
 
+.aboutPage {
+  /* display: inline-flex; */
+  justify-content: center;
+  align-items: center;
+  margin: 1%;
+  padding: 50px;
+  text-align: center;
+
+}
+.sponsors {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1%;
+  padding: 50px;
+  cursor: pointer;
+  transition: 0.2s;
+  position: absolute;
+  top: 30%;
+  left: 48%;
+  transform: translate(-50%,-50%);
+}
+
 /* GRAPH */
 
 #graphArea {
@@ -288,4 +311,10 @@ input:checked+.slider:before {
   to {
     opacity: 1;
   }
+}
+
+.logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
