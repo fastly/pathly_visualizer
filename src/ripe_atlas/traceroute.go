@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -25,9 +26,14 @@ const stopParam = "stop"
 const typeParam = "type"
 const msmParam = "msm"
 
-func GetStaticTraceRouteData(measurementID string, startTime, endTime int64) ([]measurement.Result, error) {
+func GetStaticTraceRouteData(measurementID int, startTime, endTime time.Time) ([]measurement.Result, error) {
 	a := ripeatlas.Atlaser(ripeatlas.NewHttp())
-	channel, err := a.MeasurementResults(ripeatlas.Params{pkParam: measurementID, startParam: startTime, stopParam: endTime})
+	channel, err := a.MeasurementResults(ripeatlas.Params{
+		pkParam:    strconv.Itoa(measurementID),
+		startParam: startTime.Unix(),
+		stopParam:  endTime.Unix(),
+	})
+
 	if err != nil {
 		log.Printf("Cannot get measurment results from Ripe Atlas Streaming API: %v\n", err)
 		return nil, err
@@ -71,18 +77,43 @@ func GetTraceRouteDataFromFile(path string) (<-chan *measurement.Result, error) 
 		}
 	})
 
-	go breakFileIntoLines(file, byteChannel)
+	go breakReaderIntoLines(file, byteChannel)
 
 	return outputChannel, nil
 }
 
-func breakFileIntoLines(file *os.File, lineBytesOutput chan []byte) {
-	defer util.CloseAndLogErrors("Failed to close file after reading traceroute data", file)
+// GetLatestTraceRouteData is similar to the ripeatlas equivalent, but this version uses a thread pool to speed up
+// parsing messages
+func GetLatestTraceRouteData(measurementID int) (<-chan *measurement.Result, io.Closer, error) {
+	startTime := time.Now().Add(-config.StatisticsPeriod.GetDuration())
+
+	url := fmt.Sprintf("%s/%d/results?format=txt&start=%d", MeasurementsUrl, measurementID, startTime.Unix())
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	byteChannel, outputChannel := util.MakeWorkGroup(64, func(bytes []byte, output chan *measurement.Result) {
+		var out *measurement.Result
+		if err := json.Unmarshal(bytes, &out); err != nil {
+			log.Println("Received error while reading input JSON:", err)
+		} else {
+			output <- out
+		}
+	})
+
+	go breakReaderIntoLines(res.Body, byteChannel)
+
+	return outputChannel, res.Body, nil
+}
+
+func breakReaderIntoLines(input io.ReadCloser, lineBytesOutput chan []byte) {
+	defer util.CloseAndLogErrors("Failed to close input after reading traceroute data", input)
 	defer close(lineBytesOutput)
-	bufferedRead := bufio.NewReader(file)
+	bufferedRead := bufio.NewReader(input)
 	scanner := bufio.NewScanner(bufferedRead)
 
-	// Break input file into lines and distribute them to workers
+	// Break input into lines and distribute them to workers
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		buffer := make([]byte, len(line), len(line))
@@ -91,7 +122,7 @@ func breakFileIntoLines(file *os.File, lineBytesOutput chan []byte) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Println("Got error while reading traceroute data from file:", err)
+		log.Println("Got error while reading traceroute data from input:", err)
 	}
 }
 

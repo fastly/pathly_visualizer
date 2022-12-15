@@ -45,6 +45,16 @@ func makeRouteUsageMetrics() RouteUsageMetrics {
 	}
 }
 
+func (metrics *RouteUsageMetrics) UsesSingleMeasurement(measurement int) bool {
+	for id := range metrics.MeasurementRanges {
+		if id != measurement {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (metrics *RouteUsageMetrics) AppendMeasurement(measurement *measurement.Result) {
 	timestamp := time.Unix(int64(measurement.Timestamp()), 0)
 

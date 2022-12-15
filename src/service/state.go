@@ -24,6 +24,8 @@ type ApplicationState struct {
 
 	TracerouteData     traceroute.TracerouteData
 	TracerouteDataLock sync.Mutex
+
+	StoredMeasurements MeasurementTracker
 }
 
 // InitApplicationState created the initial state to use upon the start of the application. This function is
