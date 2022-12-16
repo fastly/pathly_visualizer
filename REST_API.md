@@ -17,9 +17,15 @@ const Response = [
 ```
 
 ### Get probes
-`GET /api/probes`
+`POST /api/probes`
 
 ```js
+const PostBody = {
+    destinationIp: string,
+    filterAsns: null | list[int],
+    filterPrefix: null | string,
+}
+
 const Response = [
     {
         "id": int,
@@ -28,7 +34,12 @@ const Response = [
         "countryCode": string,
         "asn4": uint32,
         "asn6": uint32,
-        "location": GeoJSON,
+        "type": string,
+        "coordinates": 
+        [
+            float64, //Longitude
+            float64  //Latitude
+        ],
     },
     // etc.
 ]
@@ -62,7 +73,7 @@ const Response = {
     "nodes": [
         {
             "ip": string,
-            "asn": int,
+            "asn": uint32,
             "averageRtt": float,
             "lastUsed": UnixTimestamp,
             "averagePathLifespan": float, // in seconds
@@ -101,7 +112,7 @@ const Response = {
     "nodes": [
         {
             "id": NodeId,
-            "asn": int, // Optional
+            "asn": uint32, // Optional
             "averageRtt": float,
             "lastUsed": UnixTimestamp,
             "averagePathLifespan": float, // in seconds
@@ -120,3 +131,36 @@ const Response = {
 }
 ```
 
+## Measurement Tracking
+### Start Tracking Measurement
+`POST /api/measurement/start`
+```js
+const Request = {
+    atlasMeasurementId: int,
+    loadHistory: boolean,
+    startLiveCollection: boolean,
+}
+```
+The `loadHistory` field determines if the server will attempt to fetch historical data for the previous measurement period prior to doing live collection.
+
+### Stop Tracking Measurement
+`POST /api/measurement/stop`
+```js
+const Request = {
+    atlasMeasurementId: int,
+    dropStoredData: boolean,
+}
+```
+### List Measurement
+`GET /api/measurement/list`
+```js
+const Response = [
+    {
+        atlasMeasurementId: int,
+        measurementPeriodStart: UnixTimestamp,
+        measurementPeriodStop: UnixTimestamp,
+        isLoadingHistory: boolean,
+        usesLiveCollection: boolean,
+    }
+]
+```
