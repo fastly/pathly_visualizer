@@ -33,9 +33,6 @@ go version
 go get .
 ```
 
-### `Service Model`
-I am not good enough to describe what all the services are doing, nor do I know if this section is necessary
-
 ### `Running the Server Locally`
 If all dependencies are installed locally, running the server should only require the following steps:
 1. CD into the ./src folder and run the following command in the terminal:
